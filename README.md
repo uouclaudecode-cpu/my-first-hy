@@ -14,6 +14,7 @@ collector/index.mjs  ──upsert──▶  postings 표  ◀──읽기(공개
 | `public/` | 웹사이트 (빌드 없는 HTML/CSS/JS). 카테고리 필터, 마감일 정렬, 검색 |
 | `collector/` | 수집기 (Node 20+, 외부 패키지 없음) |
 | `supabase/schema.sql` | 표 생성 SQL |
+| `data/manual-postings.json` | 서포터즈가 직접 추가한 공고 |
 | `.github/workflows/collect.yml` | 1시간마다 수집기 실행 |
 
 ## 설정 순서
@@ -46,6 +47,16 @@ Supabase 대시보드 → **SQL Editor** → `supabase/schema.sql` 내용을 붙
 ### 4. Vercel 배포
 Vercel → **Add New → Project** → 이 저장소 Import → 설정은 그대로 두고 Deploy.
 (`vercel.json`이 `public/` 폴더를 정적 사이트로 배포하도록 지정합니다. 환경 변수는 필요 없습니다.)
+
+## 카드뉴스 만들기 (Canva)
+- 공고 카드의 **카드뉴스 복사** 버튼을 누르면 공고 정보가 담긴 요청 문장이 복사됩니다.
+- 여러 공고의 체크박스를 고르고(최대 8개) 아래 **모음 카드뉴스 요청 복사**를 누르면 "이번 주 SW 공고 모음"용 문장이 복사됩니다.
+- Canva가 연결된 Claude 채팅에 붙여넣으면 Canva에서 디자인을 만들어 줍니다.
+
+## 공고 직접 추가하기
+자동 수집하지 않는 곳(링커리어 등)의 공고는 Claude 채팅에 공고 내용과 링크를 붙여넣고 "공고 추가해줘"라고 하면 됩니다.
+Claude가 `data/manual-postings.json`에 양식대로 정리해 푸시하고, 워크플로가 1~2분 안에 사이트에 반영합니다. 양식은 [CLAUDE.md](CLAUDE.md)에 있습니다.
+본문·포스터는 넣지 않고 제목·주최·마감일·링크와 직접 쓴 요약만 저장합니다.
 
 ## 수집 출처와 이용 정책 확인 (2026-10-05 기준)
 

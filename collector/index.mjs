@@ -17,9 +17,12 @@ import { collectSaramin } from './sources/saramin.mjs';
 import { collectWevity } from './sources/wevity.mjs';
 import { collectContestKorea } from './sources/contestkorea.mjs';
 import { collectUouSw } from './sources/uou-sw.mjs';
+import { collectManual } from './sources/manual.mjs';
 
 const env = process.env;
 const dryRun = process.argv.includes('--dry-run');
+// --only=manual,wevity 처럼 일부 출처만 실행 (직접 추가한 공고를 바로 반영할 때 사용)
+const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7).split(',');
 const SUPABASE_URL = env.SUPABASE_URL || 'https://yggicyfxcyutfmcsnhxw.supabase.co';
 
 if (!dryRun && !env.SUPABASE_SECRET_KEY) {
@@ -48,6 +51,19 @@ const sources = [
   { name: 'wevity', enabled: true, run: () => collectWevity() },
   { name: 'contestkorea', enabled: true, run: () => collectContestKorea() },
   {
+    name: 'manual',
+    enabled: true,
+    run: async () => {
+      const rows = await collectManual();
+      // 파일에서 지운 공고는 DB에서도 지웁니다.
+      if (db) {
+        const keep = rows.map((r) => `"${r.source_id.replace(/"/g, '')}"`).join(',');
+        await db.remove('postings', `source=eq.manual${keep ? `&source_id=not.in.(${keep})` : ''}`);
+      }
+      return rows;
+    },
+  },
+  {
     name: 'uou_sw',
     enabled: true,
     run: async () => {
@@ -64,7 +80,9 @@ const results = {};
 let upserted = 0;
 let failed = 0;
 
-for (const s of sources) {
+const selected = only ? sources.filter((s) => only.includes(s.name)) : sources;
+
+for (const s of selected) {
   if (!s.enabled) {
     results[s.name] = { skipped: '키 없음' };
     console.log(`- ${s.name}: 건너뜀 (API 키 없음)`);
@@ -89,4 +107,4 @@ if (db) {
 }
 console.log(`완료: ${upserted}건 저장${dryRun ? ' (dry-run, 저장 안 함)' : ''}, 실패한 출처 ${failed}개`);
 // 모든 출처가 실패했을 때만 워크플로를 실패로 표시합니다.
-if (failed > 0 && failed === sources.filter((s) => s.enabled).length) process.exit(1);
+if (failed > 0 && failed === selected.filter((s) => s.enabled).length) process.exit(1);

@@ -82,6 +82,8 @@ export function supabase({ url, secretKey }) {
 
   return {
     select: (table, query) => request(`/${table}?${query}`),
+    remove: (table, query) =>
+      request(`/${table}?${query}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } }),
     insert: (table, rows) =>
       request(`/${table}`, {
         method: 'POST',

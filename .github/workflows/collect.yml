@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: '17 * * * *' # 매시 17분 (정각은 GitHub 스케줄이 몰려 지연되기 쉬움)
   workflow_dispatch: {} # Actions 탭에서 수동 실행
+  push: # 직접 추가한 공고 파일이 바뀌면 그 출처만 바로 반영
+    branches: [main]
+    paths: ['data/manual-postings.json']
 
 permissions:
   contents: read
@@ -23,7 +26,7 @@ jobs:
           node-version: 22
       - name: 수집 실행
         working-directory: collector
-        run: node index.mjs
+        run: node index.mjs ${{ github.event_name == 'push' && '--only=manual' || '' }}
         env:
           SUPABASE_URL: https://yggicyfxcyutfmcsnhxw.supabase.co
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
