@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#0b4a9e" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b4a9e'/><text x='16' y='22' font-size='15' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'>SW</text></svg>" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pretendard/1.3.9/static/pretendard-dynamic-subset.min.css" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=20261005c" />
 </head>
 <body>
   <header class="hero">
@@ -16,7 +16,7 @@
       <p class="brand"><span class="mark" aria-hidden="true">SW</span>울산대학교 SW 서포터즈</p>
       <h1>SW 공고 보드</h1>
       <p class="lede">SW 대외활동·공모전, 인턴 공고, 울산대 SW 소식을 매시간 모아요.<br class="hide-sm" />
-        공고마다 <strong>📸 인스타</strong> · <strong>📝 블로그</strong> 버튼으로 글쓰기 프롬프트를 복사해 ChatGPT·Claude·Gemini 등 원하는 AI에 붙여넣으세요.</p>
+        공고마다 <strong>네이버 블로그 · 인스타 게시글 · 에브리타임 게시글</strong> 버튼으로 글쓰기 프롬프트를 복사해 ChatGPT·Claude·Gemini 등 원하는 AI에 붙여넣으세요.</p>
       <p class="hero-actions">
         <button type="button" class="btn hero-btn" data-open-post>＋ 공고 올리기</button>
         <span class="hero-note">알고 있는 SW 공고를 공유해 주세요</span>
@@ -78,8 +78,10 @@
   <div class="selbar" id="selbar" hidden>
     <div class="selbar-inner">
       <span><strong id="sel-count">0</strong>개 선택</span>
-      <button type="button" class="btn primary" data-prompt="insta">📸 모음 인스타 프롬프트</button>
-      <button type="button" class="btn primary" data-prompt="blog">📝 모음 블로그 프롬프트</button>
+      <span class="sel-label">모음 프롬프트</span>
+      <button type="button" class="btn primary" data-prompt="blog">🟢 블로그</button>
+      <button type="button" class="btn primary" data-prompt="insta">📸 인스타</button>
+      <button type="button" class="btn primary" data-prompt="everytime">💬 에타</button>
       <button type="button" class="btn ghost" id="sel-clear">선택 해제</button>
     </div>
   </div>
@@ -151,14 +153,17 @@
       <p class="org"></p>
       <p class="summary"></p>
       <ul class="tags"></ul>
+      <div class="prompt-row" role="group" aria-label="글쓰기 프롬프트 복사">
+        <button type="button" class="btn prompt" data-prompt="blog" title="네이버 블로그 글쓰기 프롬프트 복사">🟢 네이버 블로그</button>
+        <button type="button" class="btn prompt" data-prompt="insta" title="인스타그램 게시글 프롬프트 복사">📸 인스타 게시글</button>
+        <button type="button" class="btn prompt" data-prompt="everytime" title="에브리타임 게시글 프롬프트 복사">💬 에브리타임</button>
+      </div>
       <div class="card-bottom">
         <div class="due">
           <span class="dday"></span>
           <span class="date"></span>
         </div>
         <div class="actions">
-          <button type="button" class="btn prompt" data-prompt="insta" title="인스타그램 글쓰기 프롬프트 복사">📸 인스타</button>
-          <button type="button" class="btn prompt" data-prompt="blog" title="블로그 글쓰기 프롬프트 복사">📝 블로그</button>
           <a class="btn ghost open" target="_blank" rel="noopener noreferrer">원문</a>
           <button type="button" class="btn ghost report" hidden title="광고·허위 공고 신고">신고</button>
         </div>
@@ -166,6 +171,6 @@
     </li>
   </template>
 
-  <script src="app.js" type="module"></script>
+  <script src="app.js?v=20261005c" type="module"></script>
 </body>
 </html>

@@ -340,3 +340,15 @@ dialog#post-dialog::backdrop { background: rgb(10 15 25 / 0.5); backdrop-filter:
   .hero-note { display: none; }
   .field-row { grid-template-columns: 1fr; }
 }
+
+/* ------------------------------------------------------------- 글쓰기 프롬프트 버튼 */
+.prompt-row {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;
+  margin-top: auto; padding-top: 12px;
+}
+.prompt-row .btn { justify-content: center; padding: 0 6px; font-size: 13px; }
+.prompt-row + .card-bottom { margin-top: 10px; }
+.sel-label { font-size: 13px; color: var(--muted); }
+@media (max-width: 420px) {
+  .prompt-row .btn { font-size: 12px; height: 36px; white-space: normal; line-height: 1.2; }
+}

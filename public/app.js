@@ -209,7 +209,6 @@ const COMMON_RULES = `[꼭 지켜줘]
 - 맨 아래 공고 정보에 있는 사실만 써줘. 상금, 혜택, 지원 자격, 일정처럼 정보에 없는 내용은 지어내지 말고 "자세한 내용은 원문에서 확인해 주세요"로 안내해줘.
 - 제목·주최·마감일은 주어진 그대로 써줘. "추정한 날짜"라고 적힌 마감일은 "공지 기준"이라고 밝히고 원문 확인을 권해줘.
 - 말투는 친근한 해요체, 대학생 눈높이로. "역대급", "무조건" 같은 과장 광고 문구는 쓰지 마.
-- 이모지는 문단·항목 앞에 하나씩 자연스럽게. 한 줄에 여러 개 몰아 쓰지 마.
 - 답변은 한국어로, 설명이나 인사 없이 요청한 결과물만 써줘.`;
 
 function instaPrompt(rows) {
@@ -219,6 +218,7 @@ function instaPrompt(rows) {
 ${COMMON_RULES}
 
 [캡션 형식]
+- 이모지는 줄·항목 앞에 하나씩 자연스럽게. 한 줄에 여러 개 몰아 쓰지 마.
 1. 첫 줄: 스크롤을 멈추게 하는 한 문장 + 이모지 1개 (예: 마감 임박, 이런 분께 추천 등 공고 성격에 맞게)
 2. 빈 줄 후 ${many ? '공고마다 3줄씩:\n   🔹 제목\n   ⏰ 마감 YYYY.MM.DD (D-n)\n   💡 한 줄 소개 (누구에게 좋은지)\n   공고 사이에는 빈 줄' : '본문 4~6줄:\n   📌 제목\n   🏢 주최\n   ⏰ 마감 YYYY.MM.DD (D-n)\n   💡 이런 분께 추천해요 (1~2줄)'}
 3. 마무리: "🔗 링크는 프로필에서 확인하세요" + 저장·공유를 권하는 한 줄
@@ -239,6 +239,7 @@ function blogPrompt(rows) {
 ${COMMON_RULES}
 
 [블로그 글 형식]
+- 이모지는 문단·항목 앞에 하나씩 자연스럽게. 한 줄에 여러 개 몰아 쓰지 마.
 - 네이버 블로그 편집기에 그대로 붙여넣을 수 있게 마크다운 기호(#, **, -, >) 없이 일반 텍스트로. 문단은 빈 줄로 나눠줘.
 - 제목: 검색에 잘 걸리도록 핵심 키워드(공고명 또는 분야 + "대외활동/공모전/인턴" + 연도)를 앞쪽에 넣어 35자 이내로.
 - 도입 (2~3문장): 서포터즈 인사 + 왜 이 ${many ? '공고들을' : '공고를'} 소개하는지.
@@ -259,6 +260,33 @@ ${COMMON_RULES}
 ${rows.map((r, i) => postingFacts(r, many ? i : null)).join('\n\n')}`;
 }
 
+function everytimePrompt(rows) {
+  const many = rows.length > 1;
+  return `너는 울산대학교 SW 서포터즈야. 아래 ${many ? `공고 ${rows.length}개를 한 번에 알리는` : '공고를 알리는'} 에브리타임(대학생 익명 커뮤니티) 홍보게시판 글을 써줘.
+
+${COMMON_RULES}
+
+[에브리타임 글 형식]
+- 에브리타임은 광고 느낌이 강하면 반응이 나쁘니, 같은 학교 학생이 정보를 공유하듯 담백하고 짧게 써줘. 이모지는 글 전체에 0~3개만.
+- 마크다운 기호(#, **, -) 없이 일반 텍스트로. 해시태그는 쓰지 마.
+- 제목: 한 줄, 35자 이내. 형식 예: "[${many ? 'SW 공고 모음' : '분류'}] 핵심 내용 (~마감 MM/DD)"
+- 본문:
+  ${many ? '1) 첫 줄: 어떤 공고들을 모았는지 한 문장\n  2) 공고마다 3~4줄: 제목 / 주최 / 마감 MM/DD (D-n) / 링크\n     공고 사이에는 빈 줄' : '1) 첫 줄: 어떤 공고인지 한 문장\n  2) 주최, 마감 MM/DD (D-n), 누구에게 좋은지 1~2줄\n  3) 링크: 원문 링크 그대로'}
+  ${many ? '3)' : '4)'} 마지막 줄: "SW 공고 더 보기: ${SITE_URL}"
+- 전체 ${many ? '700' : '400'}자 이내.
+
+[답변 형식]
+첫 줄에 "제목: ..."을 쓰고 빈 줄 다음에 본문만 써줘.
+
+${rows.map((r, i) => postingFacts(r, many ? i : null)).join('\n\n')}`;
+}
+
+const PROMPTS = {
+  blog: { label: '🟢 네이버 블로그', build: (rows) => blogPrompt(rows) },
+  insta: { label: '📸 인스타 게시글', build: (rows) => instaPrompt(rows) },
+  everytime: { label: '💬 에브리타임 게시글', build: (rows) => everytimePrompt(rows) },
+};
+
 async function copyText(text) {
   try {
     await navigator.clipboard.writeText(text);
@@ -275,9 +303,10 @@ async function copyText(text) {
 }
 
 async function copyPrompt(rows, kind) {
-  const text = kind === 'insta' ? instaPrompt(rows) : blogPrompt(rows);
-  const ok = await copyText(text);
-  const label = kind === 'insta' ? '📸 인스타' : '📝 블로그';
+  const prompt = PROMPTS[kind];
+  if (!prompt) return;
+  const ok = await copyText(prompt.build(rows));
+  const label = prompt.label;
   toast(
     ok
       ? `${label} 프롬프트를 복사했어요. ChatGPT·Claude·Gemini 등 AI 채팅에 붙여넣으세요.`
