@@ -16,7 +16,7 @@ import { collectWork24 } from './sources/work24.mjs';
 import { collectSaramin } from './sources/saramin.mjs';
 import { collectWevity } from './sources/wevity.mjs';
 import { collectContestKorea } from './sources/contestkorea.mjs';
-import { collectUouSw } from './sources/uou-sw.mjs';
+import { collectUouSw, PARSER_TAG } from './sources/uou-sw.mjs';
 import { collectManual } from './sources/manual.mjs';
 
 const env = process.env;
@@ -70,7 +70,10 @@ const sources = [
       const known = db
         ? await db.select('postings', 'source=eq.uou_sw&select=source_id&order=id.desc&limit=200')
         : [];
-      return collectUouSw({ knownIds: known.map((r) => r.source_id) });
+      const stale = db
+        ? await db.select('postings', `source=eq.uou_sw&tags=not.cs.{${PARSER_TAG}}&select=source_id&order=posted_at.desc&limit=15`)
+        : [];
+      return collectUouSw({ knownIds: known.map((r) => r.source_id), refreshIds: stale.map((r) => r.source_id) });
     },
   },
 ];

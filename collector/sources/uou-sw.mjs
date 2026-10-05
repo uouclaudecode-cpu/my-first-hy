@@ -10,7 +10,10 @@ const SITE = 'https://sw.ulsan.ac.kr/site/swulsan';
 const MAX_FORWARD = 30; // 한 번 실행에 따라갈 최대 새 글 수
 const BACKFILL = 30; // 처음 실행할 때 과거 글 수
 
-export async function collectUouSw({ knownIds = [] }) {
+// 마감일 읽는 규칙을 바꾸면 이 값을 올립니다. 표시가 없는 예전 글은 다시 읽어 고칩니다.
+export const PARSER_TAG = 'p2';
+
+export async function collectUouSw({ knownIds = [], refreshIds = [] }) {
   // 1) 홈 화면의 공지 섹션에서 최근 공지 ID를 얻습니다.
   const home = nextData(await fetchText(SITE));
   const homeIds = [];
@@ -52,6 +55,9 @@ export async function collectUouSw({ knownIds = [] }) {
   // 4) 홈 화면에만 보이는 글(중요 공지 등)
   for (const id of homeIds) await visit(id);
 
+  // 5) 예전 규칙으로 읽은 글을 다시 읽어 마감일을 고칩니다.
+  for (const id of refreshIds.map(Number).filter(Number.isFinite)) await visit(id);
+
   return rows;
 }
 
@@ -76,6 +82,7 @@ function toRow(n) {
     posted_at: n.insert_date ?? null,
     tags: [
       'SW중심대학사업단',
+      PARSER_TAG,
       ...(n.is_important ? ['중요'] : []),
       ...(deadline ? ['마감일 추정'] : []),
     ],
@@ -83,32 +90,35 @@ function toRow(n) {
 }
 
 /**
- * 본문에서 '마감', '기한', '~' 근처의 날짜를 찾아 마감일로 추정합니다.
- * 예) '신청기간: 9.1.(월) ~ 9.12.(금)', '접수 마감 2026. 10. 15.'
- * 확실하지 않으면 null (사이트에서는 '마감일 미정'으로 표시).
+ * 본문에서 "신청·모집·접수·지원·제출 기간/마감" 뒤에 나오는 날짜만 마감일로 읽습니다.
+ * 예) '모집기간 : 2026.09.04.(금) ~ 09.17.(목)' → 09-17, '접수 마감: 10. 15.' → 10-15
+ * 활동기간·행사일처럼 다른 날짜는 무시하고, 못 찾으면 null (사이트는 게시 후 30일까지만 표시).
  */
 export function guessDeadline(text, insertDate) {
   if (!text) return null;
   const posted = insertDate ? new Date(insertDate) : new Date();
-  const year = Number(new Date(posted.getTime() + 9 * 3600e3).toISOString().slice(0, 4));
-  const DATE = String.raw`(?:(20\d{2})\s*[.\-/년]\s*)?(\d{1,2})\s*[.\-/월]\s*(\d{1,2})\s*일?`;
-  const patterns = [
-    new RegExp(String.raw`(?:마감|기한|까지)[^0-9]{0,15}` + DATE),
-    new RegExp(DATE + String.raw`[^0-9]{0,15}(?:까지|마감)`),
-    new RegExp(String.raw`~\s*` + DATE),
-  ];
-  for (const re of patterns) {
-    const m = text.match(re);
-    if (!m) continue;
-    const [, y, mo, d] = m;
+  const postedYear = Number(new Date(posted.getTime() + 9 * 3600e3).toISOString().slice(0, 4));
+  const DATE = String.raw`(?:(20\d{2})\s*[.\-/년]\s*)?(\d{1,2})\s*[.\-/월]\s*(\d{1,2})\s*[.일]?\s*(?:\([^)]{1,4}\))?`;
+  const KEY = String.raw`(?:신청|모집|접수|지원|제출|응모)\s*(?:기간|기한|마감|일정|일시)?\s*[:：]?\s*`;
+  const range = new RegExp(KEY + DATE + String.raw`[^~∼]{0,12}[~∼]\s*` + DATE);
+  const single = new RegExp(String.raw`(?:신청|모집|접수|지원|제출|응모)\s*(?:마감|기한)\s*[:：]?\s*` + DATE);
+
+  const toYmd = (y, mo, d, baseYear) => {
     const month = Number(mo);
     const day = Number(d);
-    if (month < 1 || month > 12 || day < 1 || day > 31) continue;
-    let yy = y ? Number(y) : year;
-    // 연도가 없고 게시일보다 많이 이전이면 다음 해로 봅니다 (예: 12월 게시, 1월 마감)
-    const candidate = new Date(Date.UTC(yy, month - 1, day));
-    if (!y && candidate < new Date(posted.getTime() - 60 * 86400e3)) yy += 1;
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    let yy = y ? Number(y) : baseYear;
+    // 연도가 없고 게시일보다 두 달 넘게 이전이면 다음 해로 봅니다 (예: 12월 게시, 1월 마감)
+    if (!y && new Date(Date.UTC(yy, month - 1, day)) < new Date(posted.getTime() - 60 * 86400e3)) yy += 1;
     return `${yy}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  };
+
+  let m = text.match(range);
+  if (m) {
+    const startYear = m[1] ? Number(m[1]) : postedYear;
+    return toYmd(m[4], m[5], m[6], startYear);
   }
+  m = text.match(single);
+  if (m) return toYmd(m[1], m[2], m[3], postedYear);
   return null;
 }

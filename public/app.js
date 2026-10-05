@@ -14,8 +14,10 @@ const SOURCE_LABEL = {
   manual: '직접 추가',
   community: '방문자 제보',
 };
-const HIDDEN_TAGS = new Set([...Object.values(SOURCE_LABEL), '마감일 추정', 'SW중심대학사업단']);
-const NEWS_MAX_AGE_DAYS = 120; // 마감일 없는 소식은 이 기간까지만 기본 표시
+const HIDDEN_TAGS = new Set([...Object.values(SOURCE_LABEL), '마감일 추정', 'SW중심대학사업단', 'p2']);
+const NO_DEADLINE_MAX_DAYS = 30; // 마감일 없는 글(공지·뉴스)은 게시 후 이 기간까지만 기본 표시
+// 제목만 봐도 끝난 글: (마감), 수상자 발표, 최종 결과 등
+const ENDED_TITLE = /[(\[]\s*마감\s*[)\]]|접수\s*마감|모집\s*마감|조기\s*마감|마감\s*되었|수상자\s*발표|결과\s*발표|최종\s*결과|선정\s*결과|합격자\s*발표/;
 const NEW_HOURS = 48;
 const MAX_SELECT = 8;
 
@@ -58,14 +60,27 @@ const isGuessed = (r) => (r.tags || []).includes('마감일 추정');
 const isNew = (r) => Date.now() - Date.parse(r.collected_at) < NEW_HOURS * 3600e3;
 
 function isClosed(r) {
+  if (ENDED_TITLE.test(r.title)) return true;
   if (r.deadline) return r.deadline < today;
   const posted = r.posted_at || r.collected_at;
-  return posted && daysBetween(posted.slice(0, 10), today) > NEWS_MAX_AGE_DAYS;
+  return posted && daysBetween(posted.slice(0, 10), today) > NO_DEADLINE_MAX_DAYS;
+}
+
+/** 같은 공고가 여러 사이트에 올라온 경우 하나만 남깁니다. (제목에서 기호·공백만 빼고 비교) */
+function dedupe(rows) {
+  const key = (t) => t.replace(/[^0-9a-zA-Z가-힣]/g, '').toLowerCase();
+  const seen = new Set();
+  return rows.filter((r) => {
+    const k = key(r.title) || String(r.id);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }
 
 function visibleRows() {
   const q = state.q.trim().toLowerCase();
-  return state.rows.filter((r) => {
+  return dedupe(state.rows).filter((r) => {
     if (!state.closed && isClosed(r)) return false;
     if (!q) return true;
     const hay = `${r.title} ${r.organization ?? ''} ${r.summary ?? ''} ${(r.tags || []).join(' ')}`;
