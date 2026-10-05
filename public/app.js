@@ -12,6 +12,7 @@ const SOURCE_LABEL = {
   work24: '고용24',
   saramin: '사람인',
   manual: '직접 추가',
+  community: '방문자 제보',
 };
 const HIDDEN_TAGS = new Set([...Object.values(SOURCE_LABEL), '마감일 추정', 'SW중심대학사업단']);
 const NEWS_MAX_AGE_DAYS = 120; // 마감일 없는 소식은 이 기간까지만 기본 표시
@@ -122,6 +123,7 @@ function card(r) {
   const link = /^https?:\/\//.test(r.url) ? r.url : null;
   const a = el.querySelector('h2 a');
   a.textContent = r.title;
+  el.querySelector('.report').hidden = r.source !== 'community';
   const open = el.querySelector('.open');
   if (link) {
     a.href = link;
@@ -371,6 +373,7 @@ $('#list').addEventListener('click', (e) => {
   if (!cardEl) return;
   const row = state.rows.find((r) => String(r.id) === cardEl.dataset.id);
   if (e.target.closest('.copy')) copyPrompt([row]);
+  if (e.target.closest('.report')) reportPost(row, e.target.closest('.report'));
 });
 $('#list').addEventListener('change', (e) => {
   if (!e.target.matches('.pick input')) return;
@@ -394,6 +397,120 @@ $('#sel-clear').addEventListener('click', () => {
   state.selected.clear();
   render();
 });
+
+// ---------------------------------------------------------------- 공고 올리기 · 신고
+// 공개 키로 바로 넣고, 입력 검사·중복·도배 방지는 DB 트리거가 합니다. (supabase/002_community.sql)
+async function apiInsert(table, row) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify(row),
+  });
+  if (!res.ok) {
+    let msg = '';
+    try {
+      msg = (await res.json()).message ?? '';
+    } catch {}
+    // 트리거가 보낸 한국어 안내는 그대로 보여주고, 그 밖의 오류는 일반 문구로
+    throw new Error(/[가-힣]/.test(msg) ? msg : '저장하지 못했어요. 잠시 후 다시 시도해 주세요.');
+  }
+}
+
+const dialog = $('#post-dialog');
+const form = $('#post-form');
+
+function openPostDialog() {
+  form.reset();
+  $('#post-error').textContent = '';
+  form.elements.deadline.min = today;
+  form.elements.deadline.disabled = false;
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+  form.elements.title.focus();
+}
+function closePostDialog() {
+  if (typeof dialog.close === 'function') dialog.close();
+  else dialog.removeAttribute('open');
+}
+
+document.querySelectorAll('[data-open-post]').forEach((b) => b.addEventListener('click', openPostDialog));
+dialog.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closePostDialog));
+dialog.addEventListener('click', (e) => {
+  if (e.target === dialog) closePostDialog(); // 바깥 클릭
+});
+form.elements.always.addEventListener('change', () => {
+  form.elements.deadline.disabled = form.elements.always.checked;
+  if (form.elements.always.checked) form.elements.deadline.value = '';
+});
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = $('#post-error');
+  err.textContent = '';
+  if (form.elements.homepage.value) return closePostDialog(); // 봇
+  const data = Object.fromEntries(new FormData(form));
+  const title = (data.title ?? '').trim();
+  const url = (data.url ?? '').trim();
+  if (title.length < 4) return (err.textContent = '제목을 4자 이상 적어 주세요.');
+  if (!/^https?:\/\/\S+\.\S+/.test(url)) return (err.textContent = '원문 링크를 https://로 시작하는 주소로 적어 주세요.');
+  if (!form.elements.always.checked && !data.deadline)
+    return (err.textContent = '마감일을 고르거나 "상시 모집"을 체크해 주세요.');
+
+  const btn = $('#post-submit');
+  btn.disabled = true;
+  btn.textContent = '올리는 중…';
+  try {
+    await apiInsert('postings', {
+      source: 'community',
+      source_id: 'pending', // DB에서 고유 ID로 바꿉니다
+      category: data.category,
+      title,
+      url,
+      organization: data.organization?.trim() || null,
+      deadline: form.elements.always.checked ? null : data.deadline,
+      summary: data.summary?.trim() || null,
+    });
+    closePostDialog();
+    toast('공고를 올렸어요. 고마워요!');
+    update({ cat: data.category, q: '', sort: 'recent' });
+    $('#q').value = '';
+    $('#sort').value = 'recent';
+    load();
+  } catch (e2) {
+    err.textContent = e2.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '올리기';
+  }
+});
+
+const REPORTED_KEY = 'reported-posts';
+function reportedIds() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(REPORTED_KEY) || '[]'));
+  } catch {
+    return new Set();
+  }
+}
+
+async function reportPost(row, btn) {
+  const done = reportedIds();
+  if (done.has(row.id)) return toast('이미 신고한 공고예요.');
+  const reason = prompt('신고 사유를 적어 주세요. (예: 광고, 허위 정보, SW와 무관)\n신고가 3건 쌓이면 자동으로 숨겨져요.');
+  if (reason === null) return;
+  btn.disabled = true;
+  try {
+    await apiInsert('reports', { posting_id: row.id, reason: reason.trim().slice(0, 200) || null });
+    done.add(row.id);
+    try {
+      localStorage.setItem(REPORTED_KEY, JSON.stringify([...done]));
+    } catch {}
+    toast('신고했어요. 관리자가 확인할게요.');
+  } catch (e) {
+    btn.disabled = false;
+    toast(e.message);
+  }
+}
 
 readUrl();
 load();

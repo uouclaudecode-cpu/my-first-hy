@@ -14,6 +14,7 @@ collector/index.mjs  ──upsert──▶  postings 표  ◀──읽기(공개
 | `public/` | 웹사이트 (빌드 없는 HTML/CSS/JS). 카테고리 필터, 마감일 정렬, 검색 |
 | `collector/` | 수집기 (Node 20+, 외부 패키지 없음) |
 | `supabase/schema.sql` | 표 생성 SQL |
+| `supabase/002_community.sql` | 방문자 공고 올리기·신고·관리자 권한 SQL |
 | `data/manual-postings.json` | 서포터즈가 직접 추가한 공고 |
 | `.github/workflows/collect.yml` | 1시간마다 수집기 실행 |
 
@@ -57,6 +58,19 @@ Vercel → **Add New → Project** → 이 저장소 Import → 설정은 그대
 자동 수집하지 않는 곳(링커리어 등)의 공고는 Claude 채팅에 공고 내용과 링크를 붙여넣고 "공고 추가해줘"라고 하면 됩니다.
 Claude가 `data/manual-postings.json`에 양식대로 정리해 푸시하고, 워크플로가 1~2분 안에 사이트에 반영합니다. 양식은 [CLAUDE.md](CLAUDE.md)에 있습니다.
 본문·포스터는 넣지 않고 제목·주최·마감일·링크와 직접 쓴 요약만 저장합니다.
+
+## 방문자 공고 올리기 · 신고 · 관리자
+- 사이트의 **＋ 공고 올리기**로 누구나 대외활동·인턴 공고를 올릴 수 있고, 올리면 바로 보입니다.
+- DB 트리거가 입력을 검사합니다: 링크 형식, 글자 수, 마감일 범위(오늘~1년), 60일 안 같은 링크 중복, 전체 시간당 30건 제한.
+- 방문자 글에는 **신고** 버튼이 있고, 신고 3건이면 자동으로 숨겨집니다.
+- 관리자 페이지 `/admin`: 관리자 이메일로 로그인 링크를 받아 들어가서 숨기기·다시 보이기·삭제를 합니다.
+
+**처음 한 번 설정**
+1. Supabase SQL Editor에서 `supabase/002_community.sql`을 실행합니다. (관리자: uouclaudecode@gmail.com)
+2. Supabase → Authentication → **URL Configuration**에서
+   - Site URL: `https://my-first-hy.vercel.app`
+   - Redirect URLs에 `https://my-first-hy.vercel.app/admin` 추가
+3. 관리자를 늘리려면 SQL Editor에서 `insert into public.admins (email) values ('다른@이메일');`
 
 ## 수집 출처와 이용 정책 확인 (2026-10-05 기준)
 

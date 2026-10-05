@@ -17,6 +17,10 @@
       <h1>SW 공고 보드</h1>
       <p class="lede">SW 대외활동·공모전, 인턴 공고, 울산대 SW 소식을 매시간 모아요.<br class="hide-sm" />
         마음에 드는 공고는 <strong>카드뉴스 복사</strong>로 바로 홍보 자료를 만들 수 있어요.</p>
+      <p class="hero-actions">
+        <button type="button" class="btn hero-btn" data-open-post>＋ 공고 올리기</button>
+        <span class="hero-note">알고 있는 SW 공고를 누구나 공유할 수 있어요</span>
+      </p>
 
       <dl class="stats" aria-live="polite">
         <div class="stat"><dt>진행 중</dt><dd id="stat-open">–</dd></div>
@@ -66,7 +70,7 @@
     <p>
       출처: 네이버 검색 API, 고용24 Open API,
       <a href="https://www.saramin.co.kr" target="_blank" rel="noopener">채용정보 제공: 사람인</a>,
-      위비티, 콘테스트코리아, 울산대 SW중심대학사업단 공지, 서포터즈 직접 추가.
+      위비티, 콘테스트코리아, 울산대 SW중심대학사업단 공지, 서포터즈 직접 추가, 방문자 제보.
       정확한 내용과 마감일은 반드시 원문에서 확인하세요.
     </p>
   </footer>
@@ -80,6 +84,56 @@
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <button type="button" class="fab" data-open-post aria-label="공고 올리기">＋</button>
+
+  <dialog id="post-dialog" aria-labelledby="post-title">
+    <form id="post-form" method="dialog" novalidate>
+      <header class="dlg-head">
+        <h2 id="post-title">공고 올리기</h2>
+        <button type="button" class="dlg-close" data-close aria-label="닫기">×</button>
+      </header>
+      <p class="dlg-desc">올린 공고는 바로 사이트에 보여요. 광고·허위 공고는 신고되거나 관리자가 지울 수 있어요.</p>
+
+      <fieldset class="seg">
+        <legend>분류</legend>
+        <label><input type="radio" name="category" value="activity" checked /> 대외활동·공모전</label>
+        <label><input type="radio" name="category" value="intern" /> 인턴</label>
+      </fieldset>
+
+      <label class="field">
+        <span>제목 <em>*</em></span>
+        <input name="title" required minlength="4" maxlength="120" placeholder="예) 2026 카카오테크 캠퍼스 4기 모집" />
+      </label>
+      <label class="field">
+        <span>원문 링크 <em>*</em></span>
+        <input name="url" type="url" required maxlength="500" placeholder="https://" inputmode="url" />
+      </label>
+      <div class="field-row">
+        <label class="field">
+          <span>주최</span>
+          <input name="organization" maxlength="60" placeholder="예) 카카오" />
+        </label>
+        <label class="field">
+          <span>마감일</span>
+          <input name="deadline" type="date" />
+        </label>
+      </div>
+      <label class="check"><input type="checkbox" name="always" /> 상시 모집 (마감일 없음)</label>
+      <label class="field">
+        <span>한 줄 소개</span>
+        <textarea name="summary" rows="2" maxlength="200" placeholder="대상·혜택·분야를 짧게 적어 주세요"></textarea>
+      </label>
+      <!-- 봇 방지용: 사람에게는 보이지 않는 칸 -->
+      <label class="hp" aria-hidden="true">홈페이지 <input name="homepage" tabindex="-1" autocomplete="off" /></label>
+
+      <p class="form-error" id="post-error" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn ghost" data-close>취소</button>
+        <button type="submit" class="btn primary" id="post-submit">올리기</button>
+      </div>
+    </form>
+  </dialog>
 
   <template id="card">
     <li class="card">
@@ -104,6 +158,7 @@
         <div class="actions">
           <button type="button" class="btn copy">카드뉴스 복사</button>
           <a class="btn ghost open" target="_blank" rel="noopener noreferrer">원문</a>
+          <button type="button" class="btn ghost report" hidden title="광고·허위 공고 신고">신고</button>
         </div>
       </div>
     </li>

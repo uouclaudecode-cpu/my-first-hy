@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>공고 보드 관리</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b4a9e'/><text x='16' y='22' font-size='15' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'>SW</text></svg>" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pretendard/1.3.9/static/pretendard-dynamic-subset.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .admin-top { padding: 28px 0 8px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .admin-top h1 { font-size: 24px; color: var(--text); }
+    .admin-top a { font-size: 14px; }
+    .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); margin: 16px 0; }
+    .panel h2 { margin: 0 0 6px; font-size: 17px; }
+    .panel p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+    .login-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .login-row input { flex: 1 1 220px; font: inherit; font-size: 15px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; }
+    .who { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+    .filters { display: flex; gap: 6px; margin: 4px 0 12px; flex-wrap: wrap; }
+    .filters button[aria-pressed='true'] { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
+    .rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+    .row { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 6px; }
+    .row.is-hidden { background: var(--surface-2); }
+    .row h3 { margin: 0; font-size: 15px; word-break: keep-all; overflow-wrap: anywhere; }
+    .row h3 a { color: inherit; }
+    .meta-line { font-size: 13px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; }
+    .badge { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 99px; background: var(--surface-2); color: var(--muted); }
+    .badge.warn { background: var(--urgent-soft); color: var(--urgent); }
+    .reasons { margin: 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
+    .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn.danger { color: var(--urgent); border-color: color-mix(in srgb, var(--urgent) 40%, var(--line)); }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="admin-top">
+      <h1>공고 보드 관리</h1>
+      <a href="/">← 사이트로 돌아가기</a>
+    </div>
+
+    <section class="panel" id="login" hidden>
+      <h2>관리자 로그인</h2>
+      <p>관리자 이메일을 적으면 로그인 링크를 보내 드려요. 메일의 링크를 누르면 이 페이지로 돌아와요.</p>
+      <form class="login-row" id="login-form">
+        <input type="email" id="email" required placeholder="관리자 이메일" autocomplete="email" />
+        <button class="btn primary" type="submit">로그인 링크 받기</button>
+      </form>
+      <p class="form-error" id="login-msg" role="status"></p>
+    </section>
+
+    <section class="panel" id="denied" hidden>
+      <h2>관리자 권한이 없어요</h2>
+      <p>이 계정은 관리자 목록에 없어요. 관리자 추가는 Supabase의 <code>admins</code> 표에서 할 수 있어요.</p>
+      <button class="btn" data-logout>로그아웃</button>
+    </section>
+
+    <section class="panel" id="manage" hidden>
+      <div class="who"><span id="who"></span><button class="btn ghost" data-logout>로그아웃</button></div>
+      <h2 style="margin-top:14px">방문자가 올린 공고</h2>
+      <p>신고 3건이면 자동으로 숨겨져요. 문제없는 글은 "다시 보이기"를 누르면 신고 기록도 함께 지워져요.</p>
+      <div class="filters" role="group" aria-label="보기">
+        <button class="btn" data-filter="all" aria-pressed="true">전체</button>
+        <button class="btn" data-filter="reported" aria-pressed="false">신고된 글</button>
+        <button class="btn" data-filter="hidden" aria-pressed="false">숨긴 글</button>
+      </div>
+      <p class="status" id="status"></p>
+      <ul class="rows" id="rows"></ul>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="admin.js" type="module"></script>
+</body>
+</html>
