@@ -18,6 +18,7 @@ import { collectWevity } from './sources/wevity.mjs';
 import { collectContestKorea } from './sources/contestkorea.mjs';
 import { collectUouSw, PARSER_TAG } from './sources/uou-sw.mjs';
 import { collectManual } from './sources/manual.mjs';
+import { collectTechNews, collectUlsanPress } from './sources/rss.mjs';
 
 const env = process.env;
 const dryRun = process.argv.includes('--dry-run');
@@ -50,6 +51,16 @@ const sources = [
   },
   { name: 'wevity', enabled: true, run: () => collectWevity() },
   { name: 'contestkorea', enabled: true, run: () => collectContestKorea() },
+  { name: 'ulsan_press', enabled: true, run: () => collectUlsanPress() },
+  {
+    name: 'tech_news',
+    enabled: true,
+    run: async () => {
+      // AI·SW 뉴스는 30일이 지나면 지웁니다. (사이트에는 최근 14일만 보임)
+      if (db) await db.remove('postings', `category=eq.tech_news&posted_at=lt.${new Date(Date.now() - 30 * 86400e3).toISOString()}`);
+      return collectTechNews();
+    },
+  },
   {
     name: 'manual',
     enabled: true,
@@ -73,7 +84,15 @@ const sources = [
       const stale = db
         ? await db.select('postings', `source=eq.uou_sw&tags=not.cs.{${PARSER_TAG}}&select=source_id&order=posted_at.desc&limit=15`)
         : [];
-      return collectUouSw({ knownIds: known.map((r) => r.source_id), refreshIds: stale.map((r) => r.source_id) });
+      const oldest = db
+        ? await db.select('postings', 'source=eq.uou_sw&select=source_id,posted_at&order=posted_at.asc&limit=1')
+        : [];
+      const oldestId = oldest[0] && Date.parse(oldest[0].posted_at) > Date.now() - 120 * 86400e3 ? oldest[0].source_id : null;
+      return collectUouSw({
+        knownIds: known.map((r) => r.source_id),
+        refreshIds: stale.map((r) => r.source_id),
+        oldestId,
+      });
     },
   },
 ];

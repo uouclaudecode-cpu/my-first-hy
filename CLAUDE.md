@@ -1,6 +1,7 @@
 # 울산대 SW 공고 모아보기: Claude 작업 안내
 
 정적 사이트(`public/`) + 수집기(`collector/`, GitHub Actions 매시 17분) + Supabase(`postings` 표).
+분류(category): `activity`(대외활동) · `intern`(인턴) · `uou_news`(울산대 소식) · `tech_news`(AI·SW 뉴스, 전체 탭에는 안 섞임).
 배포: `main`에 푸시하면 Vercel이 사이트를 다시 배포합니다. 원격: `uouclaudecode-cpu/my-first-hy`.
 
 ## 사용자가 공고를 붙여넣으면 → `data/manual-postings.json`에 추가

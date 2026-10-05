@@ -1,5 +1,6 @@
 import {
   CATEGORY_LABEL,
+  isNewsCategory,
   CHANNELS,
   today,
   api,
@@ -13,9 +14,10 @@ import {
   formatDateTime,
   copyText,
   toast,
+  initThemeToggle,
   loadPromotions,
   setPromotion,
-} from './common.js?v=20261006e';
+} from './common.js?v=20261006f';
 
 const SOURCE_LABEL = {
   wevity: '위비티',
@@ -26,12 +28,18 @@ const SOURCE_LABEL = {
   saramin: '사람인',
   manual: '직접 추가',
   community: '방문자 제보',
+  aitimes: 'AI타임스',
+  etnews: '전자신문',
+  ksilbo: '경상일보',
+  ulsanpress: '울산신문',
+  iusm: '울산매일',
 };
-const HIDDEN_TAGS = new Set([...Object.values(SOURCE_LABEL), '마감일 추정', 'SW중심대학사업단', 'p2']);
+const HIDDEN_TAGS = new Set([...Object.values(SOURCE_LABEL), '마감일 추정', 'SW중심대학사업단', 'p2', 'SW·IT']);
 const MAX_SELECT = 8;
 
 // 분야 필터: 제목·소개·태그에 들어간 단어로 판단합니다. 한 공고가 여러 분야에 속할 수 있어요.
 const FIELDS = [
+  { key: 'sw', label: 'SW·IT', tag: 'SW·IT', re: /소프트웨어|개발자|코딩|프로그래밍|해커톤|(?<![A-Za-z])(SW|IT|ICT|AI)(?![A-Za-z])/ },
   { key: 'ai', label: 'AI·데이터', re: /AI|인공지능|데이터|머신러닝|딥러닝|LLM|에이전트|생성형|GPT/i },
   { key: 'web', label: '웹·앱', re: /웹(?!툰)|앱|모바일|프론트|백엔드|풀스택|서비스 개발|플랫폼/ },
   { key: 'game', label: '게임', re: /게임|e스포츠|이스포츠|로블록스|메이플|Unity|유니티/i },
@@ -84,7 +92,11 @@ const kstDate = (iso) => new Date(Date.parse(iso) + 9 * 3600e3).toISOString().sl
 // 위비티 분야명 "게임/소프트웨어", "웹/모바일/IT"는 게임·앱 공고라는 뜻이 아니라서 분야 판단에서 뺍니다.
 const fieldText = (r) =>
   `${r.title} ${(r.summary ?? '').replace(/게임\/소프트웨어|웹\/모바일\/(IT|플래시)/g, '소프트웨어')} ${(r.tags || []).join(' ')}`;
-const inField = (r, key) => key === 'all' || FIELDS.find((f) => f.key === key)?.re.test(fieldText(r));
+const inField = (r, key) => {
+  if (key === 'all') return true;
+  const f = FIELDS.find((x) => x.key === key);
+  return Boolean(f && ((f.tag && (r.tags || []).includes(f.tag)) || f.re.test(fieldText(r))));
+};
 
 function visibleRows() {
   const q = state.q.trim().toLowerCase();
@@ -111,11 +123,11 @@ function sortRows(rows) {
 
 // ---------------------------------------------------------------- 렌더링
 function renderStats() {
-  const open = dedupe(state.rows).filter((r) => !isClosed(r));
-  $('#stat-open').textContent = open.length;
+  const open = dedupe(state.rows).filter((r) => !isClosed(r) && r.category !== 'tech_news');
+  $('#stat-open').textContent = open.filter((r) => !isNewsCategory(r.category)).length;
   $('#stat-urgent').textContent = open.filter((r) => dday(r) !== null && dday(r) <= 3).length;
   $('#stat-new').textContent = open.filter(isNew).length;
-  $('#stat-pending').textContent = open.filter((r) => r.category !== 'uou_news' && !state.promos.get(r.id)?.size).length;
+  $('#stat-pending').textContent = open.filter((r) => !isNewsCategory(r.category) && !state.promos.get(r.id)?.size).length;
 }
 
 /** ISO 시각 → 한국 날짜 '10/6' */
@@ -143,17 +155,21 @@ function renderPromo(el, r) {
   }
 }
 
+/** '전체' 탭에는 AI·SW 뉴스를 섞지 않습니다. (뉴스가 많아 공고가 묻혀서) */
+function inTab(rows, cat) {
+  return cat === 'all' ? rows.filter((r) => r.category !== 'tech_news') : rows.filter((r) => r.category === cat);
+}
+
 function render() {
   const all = visibleRows();
   const base = all.filter((r) => inField(r, state.field));
   for (const btn of document.querySelectorAll('.tabs button')) {
     const cat = btn.dataset.cat;
-    btn.querySelector('.count').textContent =
-      cat === 'all' ? base.length : base.filter((r) => r.category === cat).length;
+    btn.querySelector('.count').textContent = inTab(base, cat).length;
     btn.setAttribute('aria-selected', String(cat === state.cat));
   }
-  renderFields(state.cat === 'all' ? all : all.filter((r) => r.category === state.cat));
-  const rows = sortRows(state.cat === 'all' ? base : base.filter((r) => r.category === state.cat));
+  renderFields(inTab(all, state.cat));
+  const rows = sortRows(inTab(base, state.cat));
   $('#list').replaceChildren(...rows.map(card));
   setStatus(rows.length ? '' : '조건에 맞는 공고가 없어요. 검색어나 필터를 바꿔 보세요.');
   renderSelbar();
@@ -177,7 +193,15 @@ function card(r) {
   a.textContent = r.title;
   el.querySelector('.report').hidden = r.source !== 'community';
   el.querySelector('.cal').hidden = !r.deadline || isClosed(r);
-  renderPromo(el, r);
+  // AI·SW 뉴스는 읽을거리라서 홍보 칸·모음 담기를 빼고 간단하게 보여줍니다.
+  if (r.category === 'tech_news') {
+    el.classList.add('is-news');
+    el.querySelector('.promo').remove();
+    el.querySelector('.progress').remove();
+    el.querySelector('.pick').remove();
+  } else {
+    renderPromo(el, r);
+  }
   if (!link) el.querySelector('.share').hidden = true;
   const open = el.querySelector('.open');
   if (link) {
@@ -187,7 +211,8 @@ function card(r) {
     open.remove();
   }
 
-  setText(el.querySelector('.org'), r.organization);
+  // 언론사 이름은 출처 표시와 같으므로 한 번만 보여줍니다.
+  setText(el.querySelector('.org'), r.organization === SOURCE_LABEL[r.source] ? null : r.organization);
   setText(el.querySelector('.summary'), r.summary);
 
   const tags = (r.tags || []).filter((t) => !HIDDEN_TAGS.has(t)).slice(0, 3);
@@ -202,9 +227,9 @@ function card(r) {
     badge.textContent = d < 0 ? '마감' : d === 0 ? 'D-DAY' : `D-${d}`;
     badge.dataset.level = d < 0 ? 'closed' : d <= 3 ? 'urgent' : d <= 7 ? 'soon' : 'normal';
     date.textContent = `${formatDate(r.deadline)} 마감${isGuessed(r) ? ' (추정)' : ''}`;
-  } else if (r.category === 'uou_news') {
+  } else if (isNewsCategory(r.category)) {
     badge.remove();
-    date.textContent = r.posted_at ? `${formatDate(r.posted_at.slice(0, 10))} 게시` : '';
+    date.textContent = r.posted_at ? `${formatDateTime(r.posted_at)} 게시` : '';
   } else {
     badge.textContent = '상시';
     badge.dataset.level = 'none';
@@ -481,7 +506,7 @@ function setStatus(msg) {
 // ---------------------------------------------------------------- URL ↔ 상태
 function readUrl() {
   const p = new URLSearchParams(location.search);
-  if (['all', 'activity', 'intern', 'uou_news'].includes(p.get('cat'))) state.cat = p.get('cat');
+  if (['all', 'activity', 'intern', 'uou_news', 'tech_news'].includes(p.get('cat'))) state.cat = p.get('cat');
   if (['deadline', 'deadline_desc', 'recent'].includes(p.get('sort'))) state.sort = p.get('sort');
   if (p.get('field') && FIELDS.some((f) => f.key === p.get('field'))) state.field = p.get('field');
   state.closed = p.get('closed') === '1';
@@ -666,3 +691,5 @@ $('#stat-pending-link').addEventListener('click', (e) => {
   update({ pending: true });
   document.querySelector('.toolbar').scrollIntoView({ behavior: 'smooth' });
 });
+
+initThemeToggle(document.querySelector('#theme-btn'));

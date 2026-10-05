@@ -7,11 +7,14 @@
 import { fetchText, stripTags, todayKst, addDays, SW_KEYWORDS, sleep } from '../lib.mjs';
 
 const BASE = 'https://www.wevity.com/';
-// cidx: 21=게임/소프트웨어, 20=웹/모바일/IT, 27=대외활동/서포터즈
+// cidx: 21=게임/소프트웨어, 20=웹/모바일/IT, 22=과학/공학, 27=대외활동/서포터즈, 88=취업/창업
+// mustMatch: SW 관련 단어가 있는 공고만 남길지 (분야가 넓은 목록에만)
 const LISTS = [
-  { cidx: 21, pages: 2, mustMatch: false },
-  { cidx: 20, pages: 2, mustMatch: true },
-  { cidx: 27, pages: 2, mustMatch: true },
+  { cidx: 21, pages: 3, mustMatch: false },
+  { cidx: 20, pages: 3, mustMatch: true },
+  { cidx: 22, pages: 2, mustMatch: true },
+  { cidx: 27, pages: 5, mustMatch: false },
+  { cidx: 88, pages: 3, mustMatch: false },
 ];
 
 export async function collectWevity() {
@@ -21,7 +24,9 @@ export async function collectWevity() {
     for (let gp = 1; gp <= pages; gp++) {
       const html = await fetchText(`${BASE}?c=find&s=1&gub=1&cidx=${cidx}&gp=${gp}`);
       for (const item of parseList(html, today)) {
+        const sw = SW_KEYWORDS.test(item.title) || /게임\/소프트웨어/.test(item.summary ?? '');
         if (mustMatch && !SW_KEYWORDS.test(item.title)) continue;
+        if (sw) item.tags.push('SW·IT');
         rows.push(item);
       }
       await sleep(2000);

@@ -4,7 +4,9 @@
 export const SUPABASE_URL = 'https://yggicyfxcyutfmcsnhxw.supabase.co';
 export const SUPABASE_KEY = 'sb_publishable_QSU6nO1Kil6FBi-wtTWLRw_tRD02S6M';
 
-export const CATEGORY_LABEL = { activity: '대외활동', intern: '인턴', uou_news: '울산대 소식' };
+export const CATEGORY_LABEL = { activity: '대외활동', intern: '인턴', uou_news: '울산대 소식', tech_news: 'AI·SW 뉴스' };
+/** 소식·뉴스(모집 공고가 아닌 글) */
+export const isNewsCategory = (cat) => cat === 'uou_news' || cat === 'tech_news';
 
 /** 홍보 채널 (promotions 표의 channel 값) */
 export const CHANNELS = [
@@ -16,19 +18,23 @@ export const CHANNELS = [
 export const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
 
 // ---------------------------------------------------------------- 마감 판단
-const NO_DEADLINE_MAX_DAYS = 30; // 마감일 없는 글(공지·뉴스)은 게시 후 이 기간까지만 기본 표시
-// 제목만 봐도 끝난 글: (마감), 수상자 발표, 최종 결과 등
+// 마감일 없는 글은 게시 후 이 기간까지만 기본 표시
+const MAX_DAYS = { uou_news: 90, tech_news: 14, default: 30 };
+// 모집 공고인데 제목만 봐도 끝난 글: (마감), 수상자 발표, 최종 결과 등 (소식·뉴스에는 적용하지 않음)
 const ENDED_TITLE = /[(\[]\s*마감\s*[)\]]|접수\s*마감|모집\s*마감|조기\s*마감|마감\s*되었|수상자\s*발표|결과\s*발표|최종\s*결과|선정\s*결과|합격자\s*발표/;
 
 export const dday = (r) => (r.deadline ? daysBetween(today, r.deadline) : null);
 export const isGuessed = (r) => (r.tags || []).includes('마감일 추정');
 
 export function isClosed(r) {
-  if (ENDED_TITLE.test(r.title)) return true;
+  if (!isNewsCategory(r.category) && ENDED_TITLE.test(r.title)) return true;
   if (r.deadline) return r.deadline < today;
   const posted = r.posted_at || r.collected_at;
-  return posted && daysBetween(posted.slice(0, 10), today) > NO_DEADLINE_MAX_DAYS;
+  return posted && daysBetween(kstDate(posted), today) > (MAX_DAYS[r.category] ?? MAX_DAYS.default);
 }
+
+/** ISO 시각 → 한국 날짜 'YYYY-MM-DD' */
+export const kstDate = (iso) => new Date(Date.parse(iso) + 9 * 3600e3).toISOString().slice(0, 10);
 
 /** 같은 공고가 여러 사이트에 올라온 경우 하나만 남깁니다. (제목에서 기호·공백만 빼고 비교) */
 export function dedupe(rows) {
@@ -152,4 +158,38 @@ export function toast(msg, action) {
   el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), action?.onClick ? 8000 : 5000);
+}
+
+// ---------------------------------------------------------------- 화면 모드 (시스템 → 라이트 → 다크)
+const THEMES = [
+  { key: 'system', label: '시스템 설정', icon: 'i-monitor' },
+  { key: 'light', label: '라이트 모드', icon: 'i-sun' },
+  { key: 'dark', label: '다크 모드', icon: 'i-moon' },
+];
+
+export function initThemeToggle(button) {
+  if (!button) return;
+  let current = 'system';
+  try {
+    current = localStorage.getItem('theme') || 'system';
+  } catch {}
+  const apply = (key) => {
+    const t = THEMES.find((x) => x.key === key) ?? THEMES[0];
+    if (t.key === 'system') delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = t.key;
+    button.querySelector('use').setAttribute('href', `#${t.icon}`);
+    button.title = `화면 모드: ${t.label} (누르면 바뀜)`;
+    button.setAttribute('aria-label', button.title);
+    current = t.key;
+  };
+  apply(current);
+  button.addEventListener('click', () => {
+    const next = THEMES[(THEMES.findIndex((x) => x.key === current) + 1) % THEMES.length];
+    apply(next.key);
+    try {
+      if (next.key === 'system') localStorage.removeItem('theme');
+      else localStorage.setItem('theme', next.key);
+    } catch {}
+    toast(`${next.label}로 바꿨어요.`);
+  });
 }

@@ -13,7 +13,10 @@ const BACKFILL = 30; // 처음 실행할 때 과거 글 수
 // 마감일 읽는 규칙을 바꾸면 이 값을 올립니다. 표시가 없는 예전 글은 다시 읽어 고칩니다.
 export const PARSER_TAG = 'p2';
 
-export async function collectUouSw({ knownIds = [], refreshIds = [] }) {
+const DEEP_BACKFILL = 15; // 실행마다 더 예전 글을 이만큼씩 채움
+const KEEP_DAYS = 120; // 이보다 오래된 공지는 더 거슬러 올라가지 않음
+
+export async function collectUouSw({ knownIds = [], refreshIds = [], oldestId = null }) {
   // 1) 홈 화면의 공지 섹션에서 최근 공지 ID를 얻습니다.
   const home = nextData(await fetchText(SITE));
   const homeIds = [];
@@ -55,7 +58,17 @@ export async function collectUouSw({ knownIds = [], refreshIds = [] }) {
   // 4) 홈 화면에만 보이는 글(중요 공지 등)
   for (const id of homeIds) await visit(id);
 
-  // 5) 예전 규칙으로 읽은 글을 다시 읽어 마감일을 고칩니다.
+  // 5) 가장 오래된 글보다 더 예전 글을 조금씩 채웁니다. (게시 후 KEEP_DAYS일 이내까지만)
+  if (oldestId) {
+    const cutoff = Date.now() - KEEP_DAYS * 86400e3;
+    info = await visit(Number(oldestId));
+    for (let i = 0; info?.prev_id && i < DEEP_BACKFILL; i++) {
+      info = await visit(info.prev_id);
+      if (info && Date.parse(info.insert_date) < cutoff) break;
+    }
+  }
+
+  // 6) 예전 규칙으로 읽은 글을 다시 읽어 마감일을 고칩니다.
   for (const id of refreshIds.map(Number).filter(Number.isFinite)) await visit(id);
 
   return rows;

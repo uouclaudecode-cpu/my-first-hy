@@ -1,5 +1,6 @@
 import {
   CATEGORY_LABEL,
+  isNewsCategory,
   CHANNELS,
   api,
   dday,
@@ -10,7 +11,8 @@ import {
   loadPromotions,
   setPromotion,
   toast,
-} from './common.js?v=20261006e';
+  initThemeToggle,
+} from './common.js?v=20261006f';
 
 const $ = (s) => document.querySelector(s);
 const state = { postings: [], byId: new Map(), promos: new Map(), log: [], filter: 'all' };
@@ -23,7 +25,7 @@ async function load() {
   ]);
   state.byId = new Map(rows.map((r) => [r.id, r]));
   state.postings = dedupe(rows)
-    .filter((r) => !isClosed(r) && r.category !== 'uou_news')
+    .filter((r) => !isClosed(r) && !isNewsCategory(r.category))
     .sort((a, b) => (a.deadline ?? '9999').localeCompare(b.deadline ?? '9999'));
   if (!promos) {
     $('#setup').hidden = false;
@@ -153,3 +155,5 @@ load().catch((err) => {
   console.error(err);
   $('#board').replaceChildren(emptyRow('불러오지 못했어요. 잠시 후 새로고침해 주세요.'));
 });
+
+initThemeToggle(document.querySelector('#theme-btn'));

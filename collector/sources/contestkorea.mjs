@@ -7,21 +7,27 @@
 import { fetchText, stripTags, todayKst, addDays, SW_KEYWORDS, sleep } from '../lib.mjs';
 
 const BASE = 'https://www.contestkorea.com/sub/';
+// mustMatch: SW 관련 단어가 있는 공고만 남길지
 const LISTS = [
   // 학문•과학•IT 분야 공모전
-  { query: 'int_gbn=1&Txt_bcode=030310001', pages: 2, kind: '공모전' },
-  // 전체 대외활동 (SW 관련만 남김)
-  { query: 'int_gbn=2', pages: 3, kind: '대외활동' },
+  { query: 'int_gbn=1&Txt_bcode=030310001', pages: 3, kind: '공모전', mustMatch: true },
+  // 아이디어•건축•창업 공모전
+  { query: 'int_gbn=1&Txt_bcode=031410001', pages: 2, kind: '공모전', mustMatch: true },
+  // 전체 대외활동 (서포터즈·기자단·교육·봉사 등)
+  { query: 'int_gbn=2', pages: 6, kind: '대외활동', mustMatch: false },
 ];
 
 export async function collectContestKorea() {
   const rows = [];
   const today = todayKst();
-  for (const { query, pages, kind } of LISTS) {
+  for (const { query, pages, kind, mustMatch } of LISTS) {
     for (let page = 1; page <= pages; page++) {
       const html = await fetchText(`${BASE}list.php?${query}&page=${page}`);
       for (const item of parseList(html, today, kind)) {
-        if (SW_KEYWORDS.test(item.title)) rows.push(item);
+        const sw = SW_KEYWORDS.test(item.title);
+        if (mustMatch && !sw) continue;
+        if (sw) item.tags.push('SW·IT');
+        rows.push(item);
       }
       await sleep(2000);
     }

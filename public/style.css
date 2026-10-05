@@ -44,8 +44,47 @@
   --shadow-lg: 0 12px 32px rgb(15 23 42 / 0.16);
   color-scheme: light;
 }
+/* 다크 모드: 사용자가 직접 고른 경우 */
+:root[data-theme='dark'] {
+    --bg: #0b0f16;
+    --surface: #141a24;
+    --surface-2: #1b2230;
+    --surface-3: #242d3d;
+    --text: #f1f5f9;
+    --text-2: #d5dce7;
+    --muted: #a7b1c2;
+    --faint: #7d889b;
+    --line: #273142;
+    --line-strong: #364256;
+
+    --brand: #6ea8f7;
+    --brand-hover: #93bff9;
+    --brand-soft: #172a45;
+    --on-brand: #0b0f16;
+
+    --success: #4ade80;
+    --success-strong: #15803d;
+    --success-soft: #12301f;
+    --warn: #fbbf24;
+    --warn-soft: #33270f;
+    --danger: #f87171;
+    --danger-soft: #3a1a1c;
+
+    --activity: #c4a8ff;
+    --activity-soft: #2a2142;
+    --intern: #5eead4;
+    --intern-soft: #10302d;
+    --news: #93bff9;
+    --news-soft: #172a45;
+
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.35);
+    --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.55);
+    color-scheme: dark;
+  }
+/* 다크 모드: 시스템 설정을 따르는 경우 (라이트를 직접 고르지 않았을 때) */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #0b0f16;
     --surface: #141a24;
     --surface-2: #1b2230;
@@ -124,6 +163,12 @@ button { font: inherit; }
 }
 .icon-btn:hover { background: var(--surface-2); color: var(--text); }
 .icon-btn.report:hover { color: var(--danger); }
+.theme-btn { border-color: var(--line); }
+
+/* 뉴스 카드는 간결하게 */
+.card.is-news { gap: 6px; }
+.card.is-news .card-title { font-size: 16px; }
+.card.is-news .card-foot { justify-content: flex-end; }
 :is(.btn, .icon-btn, .ch-copy, .ch-done, .tabs button, .field-chip, .seg-tabs button):focus-visible {
   outline: 2px solid var(--brand); outline-offset: 2px;
 }

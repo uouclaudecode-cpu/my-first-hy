@@ -7,13 +7,20 @@
   <meta name="description" content="울산대 SW 서포터즈 홍보팀: 공고별 블로그·인스타·에브리타임 게시 현황" />
   <meta name="theme-color" content="#0b4a9e" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b4a9e'/><text x='16' y='22' font-size='15' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'>SW</text></svg>" />
+  <script>
+    // 저장된 화면 모드(라이트/다크)를 그리기 전에 적용해 깜빡임을 막습니다.
+    try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
+  </script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pretendard/1.3.9/static/pretendard-dynamic-subset.min.css" />
-  <link rel="stylesheet" href="style.css?v=20261006e" />
+  <link rel="stylesheet" href="style.css?v=20261006f" />
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <defs>
       <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+      <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
     </defs>
   </svg>
 
@@ -24,6 +31,7 @@
         <a href="/">공고 보드</a>
         <a href="/promo" aria-current="page">홍보 현황</a>
       </nav>
+      <button type="button" class="icon-btn theme-btn" id="theme-btn" aria-label="화면 모드" title="화면 모드"><svg class="i"><use href="#i-monitor"/></svg></button>
     </div>
   </header>
 
@@ -88,6 +96,6 @@
   <footer class="wrap foot"><p>완료 체크는 로그인 없이 누구나 바꿀 수 있어요. 이 페이지 주소는 팀 안에서만 공유해 주세요.</p></footer>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="promo.js?v=20261006e" type="module"></script>
+  <script src="promo.js?v=20261006f" type="module"></script>
 </body>
 </html>
