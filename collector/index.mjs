@@ -7,12 +7,15 @@
 //   SUPABASE_SECRET_KEY   Supabase Secret 키 (sb_secret_...)
 //   NAVER_CLIENT_ID / NAVER_CLIENT_SECRET   네이버 검색 API
 //   WORK24_AUTH_KEY       고용24 채용정보 Open API 인증키
+//   SARAMIN_ACCESS_KEY    사람인 채용공고 Open API access-key
 // 키가 없는 출처는 건너뛰고, 한 출처가 실패해도 나머지는 계속 저장합니다.
 
 import { supabase } from './lib.mjs';
 import { collectNaverNews } from './sources/naver.mjs';
 import { collectWork24 } from './sources/work24.mjs';
+import { collectSaramin } from './sources/saramin.mjs';
 import { collectWevity } from './sources/wevity.mjs';
+import { collectContestKorea } from './sources/contestkorea.mjs';
 import { collectUouSw } from './sources/uou-sw.mjs';
 
 const env = process.env;
@@ -37,7 +40,13 @@ const sources = [
     enabled: env.WORK24_AUTH_KEY,
     run: () => collectWork24({ authKey: env.WORK24_AUTH_KEY }),
   },
+  {
+    name: 'saramin',
+    enabled: env.SARAMIN_ACCESS_KEY,
+    run: () => collectSaramin({ accessKey: env.SARAMIN_ACCESS_KEY }),
+  },
   { name: 'wevity', enabled: true, run: () => collectWevity() },
+  { name: 'contestkorea', enabled: true, run: () => collectContestKorea() },
   {
     name: 'uou_sw',
     enabled: true,

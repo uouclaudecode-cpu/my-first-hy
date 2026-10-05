@@ -121,3 +121,4 @@ h1 { margin: 0; font-size: clamp(26px, 5vw, 34px); letter-spacing: -0.02em; }
 .date { flex: none; }
 
 .foot { padding: 40px 16px 56px; font-size: 13px; color: var(--muted); }
+.foot a { color: inherit; }
