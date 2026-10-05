@@ -1,0 +1,11 @@
+{
+  "name": "uou-sw-collector",
+  "private": true,
+  "type": "module",
+  "description": "울산대 SW 서포터즈: 공고 수집기 (외부 의존성 없음, Node 20+)",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "collect": "node index.mjs",
+    "dry-run": "node index.mjs --dry-run"
+  }
+}
