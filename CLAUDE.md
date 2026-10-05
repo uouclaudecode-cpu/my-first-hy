@@ -59,7 +59,9 @@
 
 ## 배포 시
 
-`public/index.html`의 `style.css?v=…`, `app.js?v=…` 버전 값을 바꿔서 브라우저가 예전 파일을 쓰지 않게 합니다.
+`public/*.html`의 `style.css?v=…`, `app.js?v=…`, `promo.js?v=…`와 `app.js`·`promo.js` 안의 `./common.js?v=…` 버전 값을 함께 바꿔서 브라우저가 예전 파일을 쓰지 않게 합니다.
+
+페이지 구성: `index.html`+`app.js`(공고 보드), `promo.html`+`promo.js`(홍보 현황), 둘이 함께 쓰는 마감 판단·Supabase·알림은 `common.js`.
 
 ## 테스트
 

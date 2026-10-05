@@ -369,3 +369,16 @@ dialog#post-dialog::backdrop { background: rgb(10 15 25 / 0.5); backdrop-filter:
 .field-chip .count { font-size: 12px; font-weight: 500; opacity: 0.75; font-variant-numeric: tabular-nums; }
 .field-chip:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .btn.icon { width: 34px; padding: 0; justify-content: center; font-size: 15px; }
+
+/* ------------------------------------------------------------- 홍보 완료 표시 */
+.prompt-row .btn.done {
+  border-color: color-mix(in srgb, var(--intern) 55%, var(--line));
+  background: var(--intern-soft); color: var(--intern);
+}
+.prompt-row .btn.done::after { content: '✓'; margin-left: 4px; font-weight: 800; }
+.toast button {
+  border: 0; background: none; padding: 0; cursor: pointer; white-space: nowrap;
+  color: #93c5fd; font: inherit; font-weight: 700;
+}
+.hero-btn.ghost-light { background: rgb(255 255 255 / 0.14); color: #fff; box-shadow: none; border: 1px solid rgb(255 255 255 / 0.3); text-decoration: none; }
+.hero-btn.ghost-light:hover { background: rgb(255 255 255 / 0.24); }

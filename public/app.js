@@ -1,9 +1,22 @@
-// Supabase 공개(publishable) 키는 브라우저에 노출돼도 되는 키입니다.
-// 테이블은 RLS로 '읽기만' 허용되어 있습니다. (supabase/schema.sql 참고)
-const SUPABASE_URL = 'https://yggicyfxcyutfmcsnhxw.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_QSU6nO1Kil6FBi-wtTWLRw_tRD02S6M';
+import {
+  CATEGORY_LABEL,
+  CHANNELS,
+  today,
+  api,
+  apiInsert,
+  dday,
+  isGuessed,
+  isClosed,
+  dedupe,
+  daysBetween,
+  formatDate,
+  formatDateTime,
+  copyText,
+  toast,
+  loadPromotions,
+  setPromotion,
+} from './common.js?v=20261006c';
 
-const CATEGORY_LABEL = { activity: '대외활동', intern: '인턴', uou_news: '울산대 소식' };
 const SOURCE_LABEL = {
   wevity: '위비티',
   contestkorea: '콘테스트코리아',
@@ -15,9 +28,6 @@ const SOURCE_LABEL = {
   community: '방문자 제보',
 };
 const HIDDEN_TAGS = new Set([...Object.values(SOURCE_LABEL), '마감일 추정', 'SW중심대학사업단', 'p2']);
-const NO_DEADLINE_MAX_DAYS = 30; // 마감일 없는 글(공지·뉴스)은 게시 후 이 기간까지만 기본 표시
-// 제목만 봐도 끝난 글: (마감), 수상자 발표, 최종 결과 등
-const ENDED_TITLE = /[(\[]\s*마감\s*[)\]]|접수\s*마감|모집\s*마감|조기\s*마감|마감\s*되었|수상자\s*발표|결과\s*발표|최종\s*결과|선정\s*결과|합격자\s*발표/;
 const MAX_SELECT = 8;
 
 // 분야 필터: 제목·소개·태그에 들어간 단어로 판단합니다. 한 공고가 여러 분야에 속할 수 있어요.
@@ -31,26 +41,30 @@ const FIELDS = [
 ];
 
 const $ = (s) => document.querySelector(s);
-const state = { rows: [], cat: 'all', field: 'all', sort: 'deadline', q: '', closed: false, selected: new Set() };
-
-const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+const state = {
+  rows: [],
+  promos: new Map(), // posting_id → Map(channel → done_at)
+  cat: 'all',
+  field: 'all',
+  sort: 'deadline',
+  q: '',
+  closed: false,
+  pending: false, // 홍보 안 한 공고만
+  selected: new Set(),
+};
 
 // ---------------------------------------------------------------- 데이터
-async function api(path) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: { apikey: SUPABASE_KEY } });
-  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-  return res.json();
-}
-
 async function load() {
   renderSkeleton();
   try {
     const cols = 'id,source,category,title,organization,url,summary,deadline,posted_at,tags,collected_at';
-    const [rows, runs] = await Promise.all([
+    const [rows, runs, promos] = await Promise.all([
       api(`postings?select=${cols}&order=collected_at.desc&limit=2000`),
       api('collector_runs?select=finished_at&order=finished_at.desc&limit=1').catch(() => []),
+      loadPromotions().catch(() => ({ map: new Map() })), // promotions 표가 아직 없어도 보드는 동작
     ]);
     state.rows = rows;
+    state.promos = promos.map;
     $('#stat-updated').textContent = runs[0] ? formatDateTime(runs[0].finished_at) : '–';
     renderStats();
     render();
@@ -64,8 +78,6 @@ async function load() {
 }
 
 // ---------------------------------------------------------------- 판단
-const dday = (r) => (r.deadline ? daysBetween(today, r.deadline) : null);
-const isGuessed = (r) => (r.tags || []).includes('마감일 추정');
 /** 오늘(한국 시간) 처음 수집된 공고 */
 const isNew = (r) => kstDate(r.collected_at) === today;
 const kstDate = (iso) => new Date(Date.parse(iso) + 9 * 3600e3).toISOString().slice(0, 10);
@@ -74,29 +86,11 @@ const fieldText = (r) =>
   `${r.title} ${(r.summary ?? '').replace(/게임\/소프트웨어|웹\/모바일\/(IT|플래시)/g, '소프트웨어')} ${(r.tags || []).join(' ')}`;
 const inField = (r, key) => key === 'all' || FIELDS.find((f) => f.key === key)?.re.test(fieldText(r));
 
-function isClosed(r) {
-  if (ENDED_TITLE.test(r.title)) return true;
-  if (r.deadline) return r.deadline < today;
-  const posted = r.posted_at || r.collected_at;
-  return posted && daysBetween(posted.slice(0, 10), today) > NO_DEADLINE_MAX_DAYS;
-}
-
-/** 같은 공고가 여러 사이트에 올라온 경우 하나만 남깁니다. (제목에서 기호·공백만 빼고 비교) */
-function dedupe(rows) {
-  const key = (t) => t.replace(/[^0-9a-zA-Z가-힣]/g, '').toLowerCase();
-  const seen = new Set();
-  return rows.filter((r) => {
-    const k = key(r.title) || String(r.id);
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
-}
-
 function visibleRows() {
   const q = state.q.trim().toLowerCase();
   return dedupe(state.rows).filter((r) => {
     if (!state.closed && isClosed(r)) return false;
+    if (state.pending && state.promos.get(r.id)?.size) return false;
     if (!q) return true;
     const hay = `${r.title} ${r.organization ?? ''} ${r.summary ?? ''} ${(r.tags || []).join(' ')}`;
     return hay.toLowerCase().includes(q);
@@ -157,6 +151,12 @@ function card(r) {
   a.textContent = r.title;
   el.querySelector('.report').hidden = r.source !== 'community';
   el.querySelector('.cal').hidden = !r.deadline || isClosed(r);
+  const done = state.promos.get(r.id);
+  for (const b of el.querySelectorAll('.prompt-row [data-prompt]')) {
+    const at = done?.get(b.dataset.prompt);
+    b.classList.toggle('done', Boolean(at));
+    if (at) b.title = `${b.title} · ${formatDateTime(at)} 게시 완료`;
+  }
   if (!link) el.querySelector('.share').hidden = true;
   const open = el.querySelector('.open');
   if (link) {
@@ -400,31 +400,38 @@ const PROMPTS = {
   everytime: { label: '💬 에브리타임 게시글', build: (rows) => everytimePrompt(rows) },
 };
 
-async function copyText(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    const ta = Object.assign(document.createElement('textarea'), { value: text });
-    ta.style.cssText = 'position:fixed;opacity:0';
-    document.body.append(ta);
-    ta.select();
-    const ok = document.execCommand('copy');
-    ta.remove();
-    return ok;
-  }
-}
-
 async function copyPrompt(rows, kind) {
   const prompt = PROMPTS[kind];
   if (!prompt) return;
   const ok = await copyText(prompt.build(rows));
-  const label = prompt.label;
-  toast(
-    ok
-      ? `${label} 프롬프트를 복사했어요. ChatGPT·Claude·Gemini 등 AI 채팅에 붙여넣으세요.`
-      : '복사하지 못했어요. 브라우저의 클립보드 권한을 확인해 주세요.',
-  );
+  if (!ok) return toast('복사하지 못했어요. 브라우저의 클립보드 권한을 확인해 주세요.');
+  // 복사 후, 다 올렸으면 바로 "게시 완료"로 표시할 수 있게 버튼을 띄웁니다.
+  const allDone = rows.every((r) => state.promos.get(r.id)?.has(kind));
+  toast(`${prompt.label} 프롬프트를 복사했어요. AI 채팅에 붙여넣어 글을 만드세요.`, {
+    label: allDone ? '↩️ 완료 취소' : rows.length > 1 ? `✅ ${rows.length}개 다 올렸어요` : '✅ 올렸어요',
+    onClick: () => markPromoted(rows, kind, !allDone),
+  });
+}
+
+/** 홍보 완료 표시/취소: 팀원 모두에게 보이도록 promotions 표에 저장합니다. */
+async function markPromoted(rows, kind, done) {
+  const ch = CHANNELS.find((c) => c.key === kind);
+  try {
+    for (const r of rows) {
+      await setPromotion(r.id, kind, done);
+      if (!state.promos.has(r.id)) state.promos.set(r.id, new Map());
+      if (done) state.promos.get(r.id).set(kind, new Date().toISOString());
+      else state.promos.get(r.id).delete(kind);
+    }
+    render();
+    toast(done ? `${ch.icon} ${ch.short} 게시 완료로 표시했어요.` : `${ch.icon} ${ch.short} 완료 표시를 취소했어요.`, {
+      label: '📣 홍보 현황',
+      href: '/promo',
+      newTab: false,
+    });
+  } catch (err) {
+    toast(err.message);
+  }
 }
 
 // ---------------------------------------------------------------- 도우미
@@ -432,38 +439,8 @@ function setText(el, text) {
   if (text) el.textContent = text;
   else el.remove();
 }
-function daysBetween(fromYmd, toYmd) {
-  return Math.round((Date.parse(toYmd) - Date.parse(fromYmd)) / 86400e3);
-}
-function formatDate(ymd) {
-  const [y, m, d] = ymd.split('-');
-  return `${y}.${m}.${d}`;
-}
-function formatDateTime(iso) {
-  return new Date(iso).toLocaleString('ko-KR', {
-    timeZone: 'Asia/Seoul',
-    month: 'numeric',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 function setStatus(msg) {
   $('#status').textContent = msg;
-}
-
-let toastTimer;
-function toast(msg, action) {
-  const el = $('#toast');
-  el.replaceChildren(document.createTextNode(msg));
-  if (action) {
-    const a = Object.assign(document.createElement('a'), { href: action.href, textContent: action.label });
-    if (action.newTab !== false) Object.assign(a, { target: '_blank', rel: 'noopener' });
-    el.append(a);
-  }
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 5000);
 }
 
 // ---------------------------------------------------------------- URL ↔ 상태
@@ -473,6 +450,8 @@ function readUrl() {
   if (['deadline', 'deadline_desc', 'recent'].includes(p.get('sort'))) state.sort = p.get('sort');
   if (p.get('field') && FIELDS.some((f) => f.key === p.get('field'))) state.field = p.get('field');
   state.closed = p.get('closed') === '1';
+  state.pending = p.get('pending') === '1';
+  $('#pending').checked = state.pending;
   state.q = p.get('q') ?? '';
   $('#sort').value = state.sort;
   $('#closed').checked = state.closed;
@@ -484,6 +463,7 @@ function writeUrl() {
   if (state.field !== 'all') p.set('field', state.field);
   if (state.sort !== 'deadline') p.set('sort', state.sort);
   if (state.closed) p.set('closed', '1');
+  if (state.pending) p.set('pending', '1');
   if (state.q) p.set('q', state.q);
   history.replaceState(null, '', p.toString() ? `?${p}` : location.pathname);
 }
@@ -500,6 +480,7 @@ document.querySelector('.tabs').addEventListener('click', (e) => {
 });
 $('#sort').addEventListener('change', (e) => update({ sort: e.target.value }));
 $('#closed').addEventListener('change', (e) => update({ closed: e.target.checked }));
+$('#pending').addEventListener('change', (e) => update({ pending: e.target.checked }));
 $('#q').addEventListener('input', (e) => update({ q: e.target.value }));
 
 $('#list').addEventListener('click', (e) => {
@@ -542,23 +523,6 @@ $('#sel-clear').addEventListener('click', () => {
 });
 
 // ---------------------------------------------------------------- 공고 올리기 · 신고
-// 공개 키로 바로 넣고, 입력 검사·중복·도배 방지는 DB 트리거가 합니다. (supabase/002_community.sql)
-async function apiInsert(table, row) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-    method: 'POST',
-    headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-    body: JSON.stringify(row),
-  });
-  if (!res.ok) {
-    let msg = '';
-    try {
-      msg = (await res.json()).message ?? '';
-    } catch {}
-    // 트리거가 보낸 한국어 안내는 그대로 보여주고, 그 밖의 오류는 일반 문구로
-    throw new Error(/[가-힣]/.test(msg) ? msg : '저장하지 못했어요. 잠시 후 다시 시도해 주세요.');
-  }
-}
-
 const dialog = $('#post-dialog');
 const form = $('#post-form');
 
