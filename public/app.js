@@ -174,50 +174,93 @@ function renderSelbar() {
 }
 
 // ---------------------------------------------------------------- 카드뉴스 요청 문장
-const FORMAT_SINGLE = [
-  '- 크기 1080×1350(인스타그램 4:5), 3장 구성',
-  '  ① 표지: 분류, 큰 제목, D-day',
-  '  ② 상세: 주최, 한 줄 요약, 마감일',
-  '  ③ 지원 방법: "자세한 내용은 원문 링크에서" 안내 + "울산대 SW 서포터즈" 서명',
-];
+// Canva의 인스타그램 게시물 생성은 한 장짜리 디자인이 기본이고, 요청에 적힌 문구를 그대로 싣습니다.
+// 그래서 "이미지에 들어갈 문구"를 정확히 정해서 공고 1개 = 카드 1장으로 요청합니다.
+// URL·메모는 이미지에 넣지 않고, 인스타그램 캡션 초안에만 넣도록 따로 줍니다.
 
-function postingBlock(r, i) {
+function ddayLabel(r) {
   const d = dday(r);
-  const due = r.deadline
-    ? `${formatDate(r.deadline)} (${d === 0 ? 'D-DAY' : d > 0 ? `D-${d}` : '마감'})${isGuessed(r) ? ' ※ 본문에서 추정한 날짜' : ''}`
-    : '상시 또는 미정';
-  return [
-    i == null ? '[공고]' : `[공고 ${i + 1}]`,
-    `분류: ${CATEGORY_LABEL[r.category] ?? r.category}`,
-    `제목: ${r.title}`,
-    r.organization && `주최: ${r.organization}`,
-    `마감: ${due}`,
-    r.summary && (/^\S+\s?:/.test(r.summary) ? r.summary : `요약: ${r.summary}`),
-    `원문: ${r.url}`,
-  ]
-    .filter(Boolean)
-    .join('\n');
+  if (d === null) return '상시 모집';
+  return d < 0 ? '마감' : d === 0 ? 'D-DAY' : `D-${d}`;
 }
 
-function cardNewsPrompt(rows) {
-  const common = [
-    '- 톤: 깔끔하고 신뢰감 있게, 남색·하늘색 계열, 제목은 크게',
-    '- 아래 공고 정보만 사용하고 제목·마감일·링크는 바꾸지 마',
+/** 카드에 들어갈 제목: 끝의 괄호 설명을 빼고, 그래도 길면 단어 단위로 자릅니다. */
+function shortTitle(title, max = 42) {
+  let t = title.trim();
+  if (t.length > max) t = t.replace(/\s*\([^)]*\)\s*$/, '');
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const space = cut.lastIndexOf(' ');
+  return (space > max * 0.5 ? cut.slice(0, space) : cut).replace(/[\s·,\-]+$/, '') + '…';
+}
+
+/** 이미지에 실을 문구 (글자 그대로 사용) */
+function cardLines(r) {
+  const lines = [
+    `- 상단 작은 라벨: ${CATEGORY_LABEL[r.category] ?? r.category} · ${ddayLabel(r)}`,
+    `- 큰 제목: ${shortTitle(r.title)}`,
   ];
-  if (rows.length === 1) {
-    return ['Canva로 인스타그램 카드뉴스를 만들어줘.', '', '[형식]', ...FORMAT_SINGLE, ...common, '', postingBlock(rows[0])].join('\n');
-  }
+  if (r.organization) lines.push(`- 주최: ${r.organization}`);
+  if (r.deadline) lines.push(`- 마감: ${formatDate(r.deadline)}`);
+  lines.push('- 한 줄 소개: (아래 참고 정보로 25자 이내 한국어 문장을 직접 써서 넣어줘)');
+  lines.push('- 맨 아래: 자세한 내용은 프로필 링크에서 | 울산대 SW 서포터즈');
+  return lines;
+}
+
+/** 이미지에는 넣지 않는 참고 정보 */
+function referenceLines(r) {
   return [
-    `Canva로 "이번 주 SW 공고 모음" 인스타그램 카드뉴스를 만들어줘. (공고 ${rows.length}개)`,
+    r.summary && `- 참고 내용: ${r.summary}`,
+    isGuessed(r) && '- 마감일은 공지 본문에서 추정한 날짜야. 이미지에는 그대로 쓰되, 확인이 필요하다고 나에게 알려줘.',
+    `- 원문 링크(캡션용): ${r.url}`,
+  ].filter(Boolean);
+}
+
+const STYLE =
+  '스타일: 남색과 하늘색 위주의 깔끔한 정보형 디자인, 제목을 가장 크게, 마감일은 눈에 띄게 강조, 인물 사진 없이 도형과 아이콘만 사용.';
+const RULES = [
+  'Canva로 만들 때 지켜줘:',
+  '- 형식: Instagram Post (Portrait)',
+  '- "이미지 문구"만 글자 그대로 넣고, 다른 문구·영어·링크는 추가하지 마',
+  '- 다 만들면 디자인 링크와 함께 인스타그램 캡션 초안(원문 링크, 해시태그 3~5개 포함)을 써줘',
+];
+
+function cardNewsPrompt(rows) {
+  if (rows.length === 1) {
+    const r = rows[0];
+    return [
+      '울산대 SW 서포터즈 인스타그램 카드뉴스 1장을 Canva로 만들어줘.',
+      '',
+      ...RULES,
+      '',
+      '[이미지 문구]',
+      ...cardLines(r),
+      '',
+      STYLE,
+      '',
+      '[참고 정보 - 이미지에 넣지 마]',
+      ...referenceLines(r),
+    ].join('\n');
+  }
+  const blocks = rows.map((r, i) =>
+    [`## 카드 ${i + 2}`, '[이미지 문구]', ...cardLines(r), '[참고 정보 - 이미지에 넣지 마]', ...referenceLines(r)].join('\n'),
+  );
+  return [
+    `울산대 SW 서포터즈 "이번 주 SW 공고 모음" 인스타그램 카드뉴스를 Canva로 만들어줘. 카드 ${rows.length + 1}장을 각각 따로 만들면 돼.`,
     '',
-    '[형식]',
-    `- 크기 1080×1350(인스타그램 4:5), 총 ${rows.length + 2}장`,
-    '  ① 표지: "이번 주 SW 공고 모음" + 날짜',
-    '  ② 공고마다 1장: 분류, 제목, 주최, 마감일(D-day 강조), 한 줄 요약',
-    '  ③ 마지막 장: "원문 링크는 프로필/댓글에서" 안내 + "울산대 SW 서포터즈" 서명',
-    ...common,
+    ...RULES,
+    '- 모든 카드는 같은 색과 분위기로 통일해줘',
     '',
-    rows.map((r, i) => postingBlock(r, i)).join('\n\n'),
+    STYLE,
+    '',
+    '## 카드 1 (표지)',
+    '[이미지 문구]',
+    '- 큰 제목: 이번 주 SW 공고 모음',
+    `- 부제: ${formatDate(today)} 기준 · 공고 ${rows.length}개`,
+    `- 목록: ${rows.map((r) => `${ddayLabel(r)} ${shortTitle(r.title, 24)}`).join(' / ')}`,
+    '- 맨 아래: 울산대 SW 서포터즈',
+    '',
+    blocks.join('\n\n'),
   ].join('\n');
 }
 
