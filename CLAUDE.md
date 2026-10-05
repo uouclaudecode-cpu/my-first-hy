@@ -43,13 +43,13 @@
 - 삭제: 사용자가 지워 달라고 하면 배열에서 빼고 푸시합니다. 다음 실행 때 DB에서도 지워집니다.
 - 마감이 지난 항목은 사이트에서 자동으로 숨겨지므로 굳이 지우지 않아도 됩니다.
 
-## AI 글 쓰기 (블로그·인스타)
+## 인스타·블로그 글쓰기 프롬프트
 
-- 사이트의 "✍️ 글 쓰기"는 `api/write.js`(Vercel 함수)가 `lib/writer.mjs`로 Claude(claude-opus-5-5)를 불러 씁니다. 로그인한 관리자만 호출 가능.
-- 매주 월요일 08:00(KST) `.github/workflows/weekly-posts.yml`이 `scripts/weekly-posts.mjs`로 주간 모음 글을 씁니다.
-- 결과는 `drafts` 표에 저장되고 `/posts`(글 보관함)에서 봅니다.
-- 글 말투·형식을 바꾸려면 `lib/writer.mjs`의 `SYSTEM` 프롬프트를 고칩니다. "주어진 사실만 쓰기" 규칙은 유지합니다.
-- 사용자가 이 채팅에서 직접 글을 부탁하면, 같은 규칙(사실만, 해요체, 이모지, 블로그 형식/인스타 형식)으로 써 줍니다.
+- 사이트의 "📸 인스타" / "📝 블로그" 버튼은 `public/app.js`의 `instaPrompt` / `blogPrompt`가 만든 프롬프트를 복사합니다.
+  어떤 AI(ChatGPT·Claude·Gemini)에 붙여넣어도 동작하도록 특정 서비스 이름이나 기능에 기대지 않는 일반 지시문으로 유지합니다.
+- 사이트에는 로그인·AI API 호출이 없습니다(비용 없음). 다시 추가하지 않습니다.
+- 사용자가 이 채팅에 그 프롬프트를 붙여넣거나 직접 글을 부탁하면, 프롬프트의 규칙(공고 정보의 사실만, 해요체, 이모지, 형식)대로 써 줍니다.
+- 스팸 방문자 글 삭제는 Supabase Table Editor에서 합니다(관리자 페이지 없음).
 
 ## 수집 출처 추가 시
 
@@ -62,5 +62,4 @@
 ```bash
 cd collector && node index.mjs --dry-run          # 전체 출처, 저장 안 함
 cd collector && node index.mjs --dry-run --only=manual
-node scripts/weekly-posts.mjs --dry-run              # 주간 글에 들어갈 공고만 출력
 ```

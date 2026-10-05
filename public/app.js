@@ -1,7 +1,5 @@
 // Supabase 공개(publishable) 키는 브라우저에 노출돼도 되는 키입니다.
 // 테이블은 RLS로 '읽기만' 허용되어 있습니다. (supabase/schema.sql 참고)
-import { draftView } from './drafts-ui.js';
-
 const SUPABASE_URL = 'https://yggicyfxcyutfmcsnhxw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QSU6nO1Kil6FBi-wtTWLRw_tRD02S6M';
 
@@ -177,58 +175,115 @@ function renderSelbar() {
   document.body.classList.toggle('has-selbar', n > 0);
 }
 
-// ---------------------------------------------------------------- AI 글 쓰기
-// 로그인한 관리자만 /api/write를 호출할 수 있습니다. (로그인은 /admin 에서)
-let sbClient;
-async function getSession() {
+// ---------------------------------------------------------------- 인스타·블로그 프롬프트
+// 공고 정보를 넣은 글쓰기 프롬프트를 복사합니다. ChatGPT·Claude·Gemini 등 어떤 AI 채팅에 붙여넣어도 같은 양식으로 글이 나오도록
+// 특정 서비스에 기대지 않는 일반 지시문으로 씁니다.
+
+const SITE_URL = 'https://my-first-hy.vercel.app';
+
+function ddayText(r) {
+  const d = dday(r);
+  if (d === null) return '';
+  return d < 0 ? ' (마감됨)' : d === 0 ? ' (D-DAY)' : ` (D-${d})`;
+}
+
+/** 공고 하나를 프롬프트용 정보 블록으로 */
+function postingFacts(r, i) {
+  const due = r.deadline
+    ? `${formatDate(r.deadline)}${ddayText(r)}${isGuessed(r) ? ' ※ 공지 본문에서 추정한 날짜' : ''}`
+    : '상시 모집 또는 미정';
+  return [
+    i == null ? '[공고 정보]' : `[공고 ${i + 1}]`,
+    `- 분류: ${CATEGORY_LABEL[r.category] ?? r.category}`,
+    `- 제목: ${r.title}`,
+    r.organization && `- 주최: ${r.organization}`,
+    `- 마감: ${due}`,
+    r.summary && `- 참고 내용: ${r.summary}`,
+    `- 원문 링크: ${r.url}`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+const COMMON_RULES = `[꼭 지켜줘]
+- 맨 아래 공고 정보에 있는 사실만 써줘. 상금, 혜택, 지원 자격, 일정처럼 정보에 없는 내용은 지어내지 말고 "자세한 내용은 원문에서 확인해 주세요"로 안내해줘.
+- 제목·주최·마감일은 주어진 그대로 써줘. "추정한 날짜"라고 적힌 마감일은 "공지 기준"이라고 밝히고 원문 확인을 권해줘.
+- 말투는 친근한 해요체, 대학생 눈높이로. "역대급", "무조건" 같은 과장 광고 문구는 쓰지 마.
+- 이모지는 문단·항목 앞에 하나씩 자연스럽게. 한 줄에 여러 개 몰아 쓰지 마.
+- 답변은 한국어로, 설명이나 인사 없이 요청한 결과물만 써줘.`;
+
+function instaPrompt(rows) {
+  const many = rows.length > 1;
+  return `너는 울산대학교 SW 서포터즈의 인스타그램 담당이야. 아래 ${many ? `공고 ${rows.length}개를 묶어 소개하는` : '공고를 소개하는'} 인스타그램 게시물 캡션을 써줘.
+
+${COMMON_RULES}
+
+[캡션 형식]
+1. 첫 줄: 스크롤을 멈추게 하는 한 문장 + 이모지 1개 (예: 마감 임박, 이런 분께 추천 등 공고 성격에 맞게)
+2. 빈 줄 후 ${many ? '공고마다 3줄씩:\n   🔹 제목\n   ⏰ 마감 YYYY.MM.DD (D-n)\n   💡 한 줄 소개 (누구에게 좋은지)\n   공고 사이에는 빈 줄' : '본문 4~6줄:\n   📌 제목\n   🏢 주최\n   ⏰ 마감 YYYY.MM.DD (D-n)\n   💡 이런 분께 추천해요 (1~2줄)'}
+3. 마무리: "🔗 링크는 프로필에서 확인하세요" + 저장·공유를 권하는 한 줄
+4. 맨 끝: 해시태그 10~15개 (#울산대 #울산대학교 #SW서포터즈 기본 + 분야·성격에 맞는 태그)
+- 인스타 캡션은 링크가 눌리지 않으니 URL은 넣지 마.
+- 전체 2,200자 이내, 모바일에서 읽기 좋게 줄을 짧게.
+
+[답변 형식]
+캡션 본문만 바로 복사할 수 있게 써줘. 그 아래에 "✏️ 대안 첫 줄" 2개를 덧붙여줘.
+
+${rows.map((r, i) => postingFacts(r, many ? i : null)).join('\n\n')}`;
+}
+
+function blogPrompt(rows) {
+  const many = rows.length > 1;
+  return `너는 울산대학교 SW 서포터즈의 블로그 담당이야. 아래 ${many ? `공고 ${rows.length}개를 함께 소개하는 모음` : '공고를 소개하는'} 네이버 블로그 글을 써줘.
+
+${COMMON_RULES}
+
+[블로그 글 형식]
+- 네이버 블로그 편집기에 그대로 붙여넣을 수 있게 마크다운 기호(#, **, -, >) 없이 일반 텍스트로. 문단은 빈 줄로 나눠줘.
+- 제목: 검색에 잘 걸리도록 핵심 키워드(공고명 또는 분야 + "대외활동/공모전/인턴" + 연도)를 앞쪽에 넣어 35자 이내로.
+- 도입 (2~3문장): 서포터즈 인사 + 왜 이 ${many ? '공고들을' : '공고를'} 소개하는지.
+- 공고 소개 (${many ? '공고마다 아래 형식을 반복' : '아래 형식'}):
+  📌 제목
+  🏢 주최: ...
+  ⏰ 마감: YYYY.MM.DD (D-n)
+  👀 이런 분께 추천해요: 2~3문장 (분야·대상 기준, 정보에 있는 내용으로만)
+  ✅ 지원 전 체크: 원문에서 꼭 확인할 것 1~2가지 (예: 지원 자격, 제출 서류)
+  🔗 원문: 링크 그대로
+- 마무리 (2~3문장): 응원 한마디 + "더 많은 SW 공고는 ${SITE_URL} 에서 볼 수 있어요" 안내
+- 맨 끝 줄: 해시태그 8~12개 (#울산대 #SW서포터즈 포함)
+- 분량: ${many ? '공고당 5~8줄, 전체 1,500~2,500자' : '1,000~1,500자'}
+
+[답변 형식]
+첫 줄에 "제목: ..."을 쓰고 빈 줄 다음에 본문을 써줘. 본문 아래에 "✏️ 다른 제목 후보" 2개를 덧붙여줘.
+
+${rows.map((r, i) => postingFacts(r, many ? i : null)).join('\n\n')}`;
+}
+
+async function copyText(text) {
   try {
-    if (!sbClient) {
-      const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
-      sbClient = createClient(SUPABASE_URL, SUPABASE_KEY);
-    }
-    return (await sbClient.auth.getSession()).data.session;
+    await navigator.clipboard.writeText(text);
+    return true;
   } catch {
-    return null;
+    const ta = Object.assign(document.createElement('textarea'), { value: text });
+    ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.append(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
   }
 }
 
-async function writeDraft(rows, btn) {
-  const session = await getSession();
-  if (!session) {
-    return toast('글 쓰기는 로그인한 다음에 쓸 수 있어요.', { label: '로그인하기', href: '/admin', newTab: false });
-  }
-  const label = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = '✍️ 쓰는 중… (30초쯤)';
-  try {
-    const res = await fetch('/api/write', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ posting_ids: rows.map((r) => r.id) }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || `글을 쓰지 못했어요. (${res.status})`);
-    showDraft(body.draft, body.saved);
-  } catch (err) {
-    toast(err.message === 'Failed to fetch' ? '서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.' : err.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = label;
-  }
-}
-
-const draftDialog = $('#draft-dialog');
-function showDraft(draft, saved) {
-  $('#draft-body').replaceChildren(
-    draftView(draft, (ok, what) => toast(ok ? `${what} 글을 복사했어요.` : '복사하지 못했어요. 직접 드래그해서 복사해 주세요.')),
+async function copyPrompt(rows, kind) {
+  const text = kind === 'insta' ? instaPrompt(rows) : blogPrompt(rows);
+  const ok = await copyText(text);
+  const label = kind === 'insta' ? '📸 인스타' : '📝 블로그';
+  toast(
+    ok
+      ? `${label} 프롬프트를 복사했어요. ChatGPT·Claude·Gemini 등 AI 채팅에 붙여넣으세요.`
+      : '복사하지 못했어요. 브라우저의 클립보드 권한을 확인해 주세요.',
   );
-  $('#draft-saved').textContent = saved ? '글 보관함에 저장했어요.' : '보관함 저장에는 실패했어요. 지금 복사해 두세요.';
-  if (typeof draftDialog.showModal === 'function') draftDialog.showModal();
-  else draftDialog.setAttribute('open', '');
 }
-draftDialog.querySelectorAll('[data-close]').forEach((b) =>
-  b.addEventListener('click', () => (draftDialog.close ? draftDialog.close() : draftDialog.removeAttribute('open'))),
-);
 
 // ---------------------------------------------------------------- 도우미
 function setText(el, text) {
@@ -307,8 +362,8 @@ $('#list').addEventListener('click', (e) => {
   const cardEl = e.target.closest('.card[data-id]');
   if (!cardEl) return;
   const row = state.rows.find((r) => String(r.id) === cardEl.dataset.id);
-  const write = e.target.closest('.write');
-  if (write) writeDraft([row], write);
+  const promptBtn = e.target.closest('[data-prompt]');
+  if (promptBtn) copyPrompt([row], promptBtn.dataset.prompt);
   if (e.target.closest('.report')) reportPost(row, e.target.closest('.report'));
 });
 $('#list').addEventListener('change', (e) => {
@@ -325,10 +380,12 @@ $('#list').addEventListener('change', (e) => {
   cardEl.classList.toggle('picked', e.target.checked);
   renderSelbar();
 });
-$('#sel-write').addEventListener('click', (e) => {
-  const rows = state.rows.filter((r) => state.selected.has(r.id));
-  writeDraft(sortRows(rows), e.currentTarget);
-});
+document.querySelectorAll('#selbar [data-prompt]').forEach((b) =>
+  b.addEventListener('click', () => {
+    const rows = state.rows.filter((r) => state.selected.has(r.id));
+    copyPrompt(sortRows(rows), b.dataset.prompt);
+  }),
+);
 $('#sel-clear').addEventListener('click', () => {
   state.selected.clear();
   render();

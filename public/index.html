@@ -16,10 +16,10 @@
       <p class="brand"><span class="mark" aria-hidden="true">SW</span>울산대학교 SW 서포터즈</p>
       <h1>SW 공고 보드</h1>
       <p class="lede">SW 대외활동·공모전, 인턴 공고, 울산대 SW 소식을 매시간 모아요.<br class="hide-sm" />
-        마음에 드는 공고는 <strong>✍️ 글 쓰기</strong>로 블로그·인스타 글을 바로 만들 수 있어요.</p>
+        공고마다 <strong>📸 인스타</strong> · <strong>📝 블로그</strong> 버튼으로 글쓰기 프롬프트를 복사해 ChatGPT·Claude·Gemini 등 원하는 AI에 붙여넣으세요.</p>
       <p class="hero-actions">
         <button type="button" class="btn hero-btn" data-open-post>＋ 공고 올리기</button>
-        <a class="btn hero-btn ghost-light" href="/posts">📚 글 보관함</a>
+        <span class="hero-note">알고 있는 SW 공고를 공유해 주세요</span>
       </p>
 
       <dl class="stats" aria-live="polite">
@@ -78,27 +78,13 @@
   <div class="selbar" id="selbar" hidden>
     <div class="selbar-inner">
       <span><strong id="sel-count">0</strong>개 선택</span>
-      <button type="button" class="btn primary" id="sel-write">✍️ 선택한 공고로 글 쓰기</button>
+      <button type="button" class="btn primary" data-prompt="insta">📸 모음 인스타 프롬프트</button>
+      <button type="button" class="btn primary" data-prompt="blog">📝 모음 블로그 프롬프트</button>
       <button type="button" class="btn ghost" id="sel-clear">선택 해제</button>
     </div>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-
-  <dialog id="draft-dialog" class="sheet" aria-labelledby="draft-heading">
-    <div class="sheet-inner">
-      <header class="dlg-head">
-        <h2 id="draft-heading">✍️ AI가 쓴 글</h2>
-        <button type="button" class="dlg-close" data-close aria-label="닫기">×</button>
-      </header>
-      <p class="dlg-desc"><span id="draft-saved"></span> 올리기 전에 마감일과 링크를 한 번 더 확인해 주세요.</p>
-      <div id="draft-body"></div>
-      <div class="dlg-actions">
-        <a class="btn ghost" href="/posts">📚 글 보관함</a>
-        <button type="button" class="btn" data-close>닫기</button>
-      </div>
-    </div>
-  </dialog>
 
   <button type="button" class="fab" data-open-post aria-label="공고 올리기">＋</button>
 
@@ -171,7 +157,8 @@
           <span class="date"></span>
         </div>
         <div class="actions">
-          <button type="button" class="btn write">✍️ 글 쓰기</button>
+          <button type="button" class="btn prompt" data-prompt="insta" title="인스타그램 글쓰기 프롬프트 복사">📸 인스타</button>
+          <button type="button" class="btn prompt" data-prompt="blog" title="블로그 글쓰기 프롬프트 복사">📝 블로그</button>
           <a class="btn ghost open" target="_blank" rel="noopener noreferrer">원문</a>
           <button type="button" class="btn ghost report" hidden title="광고·허위 공고 신고">신고</button>
         </div>

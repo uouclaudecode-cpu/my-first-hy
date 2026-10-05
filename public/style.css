@@ -206,7 +206,7 @@ main { padding-top: 20px; }
 .dday[data-level='closed'], .dday[data-level='none'] { background: var(--surface-2); color: var(--faint); }
 .date { font-size: 13px; color: var(--muted); white-space: nowrap; }
 
-.actions { display: flex; gap: 6px; }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .btn {
   display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px;
   border-radius: 9px; border: 1px solid var(--line); background: var(--surface); color: var(--text);
@@ -214,8 +214,8 @@ main { padding-top: 20px; }
 }
 .btn:hover { background: var(--surface-2); }
 .btn:focus-visible, .tabs button:focus-visible, .pick:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; }
-.btn.write { border-color: color-mix(in srgb, var(--brand) 35%, var(--line)); color: var(--brand); }
-.btn.write:hover { background: var(--brand-soft); }
+.btn.prompt { border-color: color-mix(in srgb, var(--brand) 35%, var(--line)); color: var(--brand); }
+.btn.prompt:hover { background: var(--brand-soft); }
 .btn.primary { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
 .btn.primary:hover { background: var(--brand-strong); }
 .btn.ghost { background: transparent; }
@@ -287,12 +287,12 @@ body.has-selbar .toast { bottom: 96px; }
 }
 body.has-selbar .fab { bottom: 92px; }
 
-dialog#post-dialog, dialog.sheet {
+dialog#post-dialog {
   width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto;
   padding: 0; border: 1px solid var(--line); border-radius: 18px;
   background: var(--surface); color: var(--text); box-shadow: var(--shadow-lg);
 }
-dialog#post-dialog::backdrop, dialog.sheet::backdrop { background: rgb(10 15 25 / 0.5); backdrop-filter: blur(2px); }
+dialog#post-dialog::backdrop { background: rgb(10 15 25 / 0.5); backdrop-filter: blur(2px); }
 #post-form { padding: 20px 22px 18px; display: flex; flex-direction: column; gap: 12px; }
 .dlg-head { display: flex; align-items: center; justify-content: space-between; }
 .dlg-head h2 { margin: 0; font-size: 20px; letter-spacing: -0.02em; }
@@ -339,26 +339,4 @@ dialog#post-dialog::backdrop, dialog.sheet::backdrop { background: rgb(10 15 25 
   .fab { display: grid; place-items: center; }
   .hero-note { display: none; }
   .field-row { grid-template-columns: 1fr; }
-}
-
-/* ------------------------------------------------------------- AI 글 */
-.hero-btn.ghost-light { background: rgb(255 255 255 / 0.14); color: #fff; box-shadow: none; border: 1px solid rgb(255 255 255 / 0.3); }
-.hero-btn.ghost-light:hover { background: rgb(255 255 255 / 0.24); }
-dialog.sheet { width: min(760px, calc(100vw - 24px)); }
-.sheet-inner { padding: 20px 22px 18px; display: flex; flex-direction: column; gap: 12px; }
-
-.draft { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.draft-tabs { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--surface-2); align-self: flex-start; }
-.draft-tabs button {
-  border: 0; background: none; color: var(--muted); font-weight: 600; font-size: 14px;
-  padding: 7px 14px; border-radius: 9px; cursor: pointer;
-}
-.draft-tabs button[aria-selected='true'] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
-.draft-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-.draft-title { margin: 0; font-size: 17px; letter-spacing: -0.01em; word-break: keep-all; }
-.draft-count { font-size: 13px; color: var(--faint); }
-.draft-text {
-  margin: 0; padding: 14px 16px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line);
-  font: inherit; font-size: 14px; line-height: 1.75; white-space: pre-wrap; word-break: keep-all; overflow-wrap: anywhere;
-  max-height: min(55vh, 520px); overflow: auto;
 }

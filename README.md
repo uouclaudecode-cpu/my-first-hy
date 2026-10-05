@@ -14,10 +14,7 @@ collector/index.mjs  ──upsert──▶  postings 표  ◀──읽기(공개
 | `public/` | 웹사이트 (빌드 없는 HTML/CSS/JS). 카테고리 필터, 마감일 정렬, 검색 |
 | `collector/` | 수집기 (Node 20+, 외부 패키지 없음) |
 | `supabase/schema.sql` | 표 생성 SQL |
-| `supabase/002_community.sql` | 방문자 공고 올리기·신고·관리자 권한 SQL |
-| `supabase/003_drafts.sql` | AI 글 보관함 표 |
-| `lib/writer.mjs`, `api/write.js` | AI 글 쓰기 (프롬프트, Vercel 함수) |
-| `scripts/weekly-posts.mjs` | 매주 월요일 주간 글 자동 작성 |
+| `supabase/002_community.sql` | 방문자 공고 올리기·신고 SQL |
 | `data/manual-postings.json` | 서포터즈가 직접 추가한 공고 |
 | `.github/workflows/collect.yml` | 1시간마다 수집기 실행 |
 
@@ -52,36 +49,24 @@ Supabase 대시보드 → **SQL Editor** → `supabase/schema.sql` 내용을 붙
 Vercel → **Add New → Project** → 이 저장소 Import → 설정은 그대로 두고 Deploy.
 (`vercel.json`이 `public/` 폴더를 정적 사이트로 배포하도록 지정합니다. 환경 변수는 필요 없습니다.)
 
-## AI 글 쓰기 (블로그·인스타그램)
-- 공고 카드의 **✍️ 글 쓰기**를 누르면 Claude가 네이버 블로그 글과 인스타그램 캡션을 이모지와 함께 씁니다. 여러 공고를 체크하면(최대 8개) 모음 글을 씁니다.
-- 매주 **월요일 08:00**에는 "이번 주 SW 공고 모음" 글이 자동으로 써집니다.
-- 쓴 글은 모두 **/posts (글 보관함)** 에 쌓이고, 탭별로 복사할 수 있습니다.
-- 글 쓰기는 비용이 들어서 관리자(admins 표)로 로그인한 사람만 쓸 수 있습니다. 로그인은 `/admin`.
-- 주어진 공고 정보에 없는 혜택·상금 등은 지어내지 않도록 했지만, 올리기 전에 마감일과 링크는 한 번 더 확인하세요.
-
-**처음 한 번 설정**
-1. Supabase SQL Editor에서 `supabase/003_drafts.sql` 실행
-2. [Anthropic Console](https://console.anthropic.com)에서 API 키 발급 (결제 수단 등록 필요)
-3. Vercel → 프로젝트 → Settings → **Environment Variables**에 `ANTHROPIC_API_KEY` 추가 후 Redeploy
-4. GitHub Secrets에 `ANTHROPIC_API_KEY` 추가 (주간 자동 글용)
+## 인스타·블로그 글쓰기 프롬프트
+- 공고 카드의 **📸 인스타** / **📝 블로그** 버튼을 누르면 그 공고 정보가 담긴 글쓰기 프롬프트가 복사됩니다.
+- ChatGPT·Claude·Gemini 등 어떤 AI 채팅에 붙여넣어도 같은 양식(해요체, 이모지, 해시태그)으로 글이 나옵니다. 로그인·API 키·추가 비용이 없습니다.
+- 여러 공고를 체크하면(최대 8개) 화면 아래 **모음 인스타/블로그 프롬프트**로 한 편에 묶어 쓸 수 있습니다.
+- 프롬프트는 공고 정보에 없는 혜택·상금을 지어내지 않도록 지시하지만, 올리기 전에 마감일과 링크는 한 번 더 확인하세요.
+- 양식을 바꾸려면 `public/app.js`의 `instaPrompt` / `blogPrompt`를 고칩니다.
 
 ## 공고 직접 추가하기
 자동 수집하지 않는 곳(링커리어 등)의 공고는 Claude 채팅에 공고 내용과 링크를 붙여넣고 "공고 추가해줘"라고 하면 됩니다.
 Claude가 `data/manual-postings.json`에 양식대로 정리해 푸시하고, 워크플로가 1~2분 안에 사이트에 반영합니다. 양식은 [CLAUDE.md](CLAUDE.md)에 있습니다.
 본문·포스터는 넣지 않고 제목·주최·마감일·링크와 직접 쓴 요약만 저장합니다.
 
-## 방문자 공고 올리기 · 신고 · 관리자
-- 사이트의 **＋ 공고 올리기**로 누구나 대외활동·인턴 공고를 올릴 수 있고, 올리면 바로 보입니다.
+## 방문자 공고 올리기 · 신고
+- 사이트의 **＋ 공고 올리기**로 누구나 대외활동·인턴 공고를 올릴 수 있고, 올리면 바로 보입니다. 로그인은 없습니다.
 - DB 트리거가 입력을 검사합니다: 링크 형식, 글자 수, 마감일 범위(오늘~1년), 60일 안 같은 링크 중복, 전체 시간당 30건 제한.
 - 방문자 글에는 **신고** 버튼이 있고, 신고 3건이면 자동으로 숨겨집니다.
-- 관리자 페이지 `/admin`: 관리자 이메일로 로그인 링크를 받아 들어가서 숨기기·다시 보이기·삭제를 합니다.
-
-**처음 한 번 설정**
-1. Supabase SQL Editor에서 `supabase/002_community.sql`을 실행합니다. (관리자: uouclaudecode@gmail.com)
-2. Supabase → Authentication → **URL Configuration**에서
-   - Site URL: `https://my-first-hy.vercel.app`
-   - Redirect URLs에 `https://my-first-hy.vercel.app/admin` 추가
-3. 관리자를 늘리려면 SQL Editor에서 `insert into public.admins (email) values ('다른@이메일');`
+- 스팸을 직접 지우려면 Supabase → **Table Editor → postings**에서 `source`가 `community`인 행을 지우면 됩니다.
+- 처음 한 번: Supabase SQL Editor에서 `supabase/002_community.sql` 실행
 
 ## 수집 출처와 이용 정책 확인 (2026-10-05 기준)
 
