@@ -18,11 +18,20 @@ const HIDDEN_TAGS = new Set([...Object.values(SOURCE_LABEL), '마감일 추정',
 const NO_DEADLINE_MAX_DAYS = 30; // 마감일 없는 글(공지·뉴스)은 게시 후 이 기간까지만 기본 표시
 // 제목만 봐도 끝난 글: (마감), 수상자 발표, 최종 결과 등
 const ENDED_TITLE = /[(\[]\s*마감\s*[)\]]|접수\s*마감|모집\s*마감|조기\s*마감|마감\s*되었|수상자\s*발표|결과\s*발표|최종\s*결과|선정\s*결과|합격자\s*발표/;
-const NEW_HOURS = 48;
 const MAX_SELECT = 8;
 
+// 분야 필터: 제목·소개·태그에 들어간 단어로 판단합니다. 한 공고가 여러 분야에 속할 수 있어요.
+const FIELDS = [
+  { key: 'ai', label: '🤖 AI·데이터', re: /AI|인공지능|데이터|머신러닝|딥러닝|LLM|에이전트|생성형|GPT/i },
+  { key: 'web', label: '💻 웹·앱', re: /웹(?!툰)|앱|모바일|프론트|백엔드|풀스택|서비스 개발|플랫폼/ },
+  { key: 'game', label: '🎮 게임', re: /게임|e스포츠|이스포츠|로블록스|메이플|Unity|유니티/i },
+  { key: 'contest', label: '🏆 해커톤·대회', re: /해커톤|아이디어톤|경진대회|경시대회|챌린지|공모전|콘테스트|대회/ },
+  { key: 'edu', label: '📚 교육·부트캠프', re: /교육|부트캠프|아카데미|캠프|특강|과정|강의|설명회|TA/ },
+  { key: 'startup', label: '🚀 창업', re: /창업|스타트업|사업화|오디션/ },
+];
+
 const $ = (s) => document.querySelector(s);
-const state = { rows: [], cat: 'all', sort: 'deadline', q: '', closed: false, selected: new Set() };
+const state = { rows: [], cat: 'all', field: 'all', sort: 'deadline', q: '', closed: false, selected: new Set() };
 
 const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
 
@@ -57,7 +66,13 @@ async function load() {
 // ---------------------------------------------------------------- 판단
 const dday = (r) => (r.deadline ? daysBetween(today, r.deadline) : null);
 const isGuessed = (r) => (r.tags || []).includes('마감일 추정');
-const isNew = (r) => Date.now() - Date.parse(r.collected_at) < NEW_HOURS * 3600e3;
+/** 오늘(한국 시간) 처음 수집된 공고 */
+const isNew = (r) => kstDate(r.collected_at) === today;
+const kstDate = (iso) => new Date(Date.parse(iso) + 9 * 3600e3).toISOString().slice(0, 10);
+// 위비티 분야명 "게임/소프트웨어", "웹/모바일/IT"는 게임·앱 공고라는 뜻이 아니라서 분야 판단에서 뺍니다.
+const fieldText = (r) =>
+  `${r.title} ${(r.summary ?? '').replace(/게임\/소프트웨어|웹\/모바일\/(IT|플래시)/g, '소프트웨어')} ${(r.tags || []).join(' ')}`;
+const inField = (r, key) => key === 'all' || FIELDS.find((f) => f.key === key)?.re.test(fieldText(r));
 
 function isClosed(r) {
   if (ENDED_TITLE.test(r.title)) return true;
@@ -102,20 +117,22 @@ function sortRows(rows) {
 
 // ---------------------------------------------------------------- 렌더링
 function renderStats() {
-  const open = state.rows.filter((r) => !isClosed(r));
+  const open = dedupe(state.rows).filter((r) => !isClosed(r));
   $('#stat-open').textContent = open.length;
   $('#stat-urgent').textContent = open.filter((r) => dday(r) !== null && dday(r) <= 3).length;
   $('#stat-new').textContent = open.filter(isNew).length;
 }
 
 function render() {
-  const base = visibleRows();
+  const all = visibleRows();
+  const base = all.filter((r) => inField(r, state.field));
   for (const btn of document.querySelectorAll('.tabs button')) {
     const cat = btn.dataset.cat;
     btn.querySelector('.count').textContent =
       cat === 'all' ? base.length : base.filter((r) => r.category === cat).length;
     btn.setAttribute('aria-selected', String(cat === state.cat));
   }
+  renderFields(state.cat === 'all' ? all : all.filter((r) => r.category === state.cat));
   const rows = sortRows(state.cat === 'all' ? base : base.filter((r) => r.category === state.cat));
   $('#list').replaceChildren(...rows.map(card));
   setStatus(rows.length ? '' : '조건에 맞는 공고가 없어요. 검색어나 필터를 바꿔 보세요.');
@@ -139,6 +156,8 @@ function card(r) {
   const a = el.querySelector('h2 a');
   a.textContent = r.title;
   el.querySelector('.report').hidden = r.source !== 'community';
+  el.querySelector('.cal').hidden = !r.deadline || isClosed(r);
+  if (!link) el.querySelector('.share').hidden = true;
   const open = el.querySelector('.open');
   if (link) {
     a.href = link;
@@ -171,6 +190,85 @@ function card(r) {
     date.textContent = '마감일 미정';
   }
   return el;
+}
+
+/** 분야 칩: 지금 탭에서 해당 분야 공고가 몇 개인지 함께 보여줍니다. */
+function renderFields(rows) {
+  const chip = (key, label, n) => {
+    const b = Object.assign(document.createElement('button'), { type: 'button', className: 'field-chip' });
+    b.dataset.field = key;
+    b.setAttribute('aria-pressed', String(state.field === key));
+    b.append(label, Object.assign(document.createElement('span'), { className: 'count', textContent: n }));
+    return b;
+  };
+  $('#fields').replaceChildren(
+    chip('all', '전체 분야', rows.length),
+    ...FIELDS.map((f) => chip(f.key, f.label, rows.filter((r) => f.re.test(fieldText(r))).length)),
+  );
+}
+
+// ---------------------------------------------------------------- 캘린더 · 공유
+const isApple = /iPhone|iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
+const ymdCompact = (ymd) => ymd.replaceAll('-', '');
+const nextDay = (ymd) => new Date(Date.parse(ymd) + 86400e3).toISOString().slice(0, 10);
+
+/** 마감일을 하루짜리 일정으로 추가합니다. 아이폰은 .ics 파일, 그 밖에는 구글 캘린더 창을 엽니다. */
+function addToCalendar(r) {
+  const title = `[마감] ${r.title}`;
+  const details = [r.organization && `주최: ${r.organization}`, `원문: ${r.url}`, `SW 공고 보드: ${location.origin}`]
+    .filter(Boolean)
+    .join('\n');
+  if (!isApple) {
+    const params = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: title,
+      dates: `${ymdCompact(r.deadline)}/${ymdCompact(nextDay(r.deadline))}`,
+      details,
+    });
+    window.open(`https://calendar.google.com/calendar/render?${params}`, '_blank', 'noopener');
+    return;
+  }
+  const esc = (s) => s.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, '\\n');
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//UOU SW Board//KO',
+    'BEGIN:VEVENT',
+    `UID:posting-${r.id}@uou-sw-board`,
+    `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
+    `DTSTART;VALUE=DATE:${ymdCompact(r.deadline)}`,
+    `DTEND;VALUE=DATE:${ymdCompact(nextDay(r.deadline))}`,
+    `SUMMARY:${esc(title)}`,
+    `DESCRIPTION:${esc(details)}`,
+    `URL:${r.url}`,
+    'BEGIN:VALARM',
+    'TRIGGER:-PT15H', // 마감 전날 오전 9시쯤
+    'ACTION:DISPLAY',
+    `DESCRIPTION:${esc(`내일 마감: ${r.title}`)}`,
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })),
+    download: `마감-${r.deadline}.ics`,
+  });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+async function sharePosting(r) {
+  const d = dday(r);
+  const due = r.deadline ? ` (마감 ${formatDate(r.deadline)}${d >= 0 ? `, ${d === 0 ? 'D-DAY' : `D-${d}`}` : ''})` : '';
+  const data = { title: r.title, text: `${r.title}${due}`, url: r.url };
+  if (navigator.share) {
+    try {
+      await navigator.share(data);
+    } catch {} // 사용자가 공유 창을 닫은 경우
+    return;
+  }
+  const ok = await copyText(`${data.text}\n${data.url}`);
+  toast(ok ? '공고 제목과 링크를 복사했어요. 원하는 곳에 붙여넣으세요.' : '복사하지 못했어요.');
 }
 
 function renderSkeleton() {
@@ -373,6 +471,7 @@ function readUrl() {
   const p = new URLSearchParams(location.search);
   if (['all', 'activity', 'intern', 'uou_news'].includes(p.get('cat'))) state.cat = p.get('cat');
   if (['deadline', 'deadline_desc', 'recent'].includes(p.get('sort'))) state.sort = p.get('sort');
+  if (p.get('field') && FIELDS.some((f) => f.key === p.get('field'))) state.field = p.get('field');
   state.closed = p.get('closed') === '1';
   state.q = p.get('q') ?? '';
   $('#sort').value = state.sort;
@@ -382,6 +481,7 @@ function readUrl() {
 function writeUrl() {
   const p = new URLSearchParams();
   if (state.cat !== 'all') p.set('cat', state.cat);
+  if (state.field !== 'all') p.set('field', state.field);
   if (state.sort !== 'deadline') p.set('sort', state.sort);
   if (state.closed) p.set('closed', '1');
   if (state.q) p.set('q', state.q);
@@ -409,6 +509,12 @@ $('#list').addEventListener('click', (e) => {
   const promptBtn = e.target.closest('[data-prompt]');
   if (promptBtn) copyPrompt([row], promptBtn.dataset.prompt);
   if (e.target.closest('.report')) reportPost(row, e.target.closest('.report'));
+  if (e.target.closest('.cal')) addToCalendar(row);
+  if (e.target.closest('.share')) sharePosting(row);
+});
+$('#fields').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-field]');
+  if (b) update({ field: b.dataset.field });
 });
 $('#list').addEventListener('change', (e) => {
   if (!e.target.matches('.pick input')) return;

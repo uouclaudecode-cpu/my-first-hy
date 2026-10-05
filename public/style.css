@@ -352,3 +352,20 @@ dialog#post-dialog::backdrop { background: rgb(10 15 25 / 0.5); backdrop-filter:
 @media (max-width: 420px) {
   .prompt-row .btn { font-size: 12px; height: 36px; white-space: normal; line-height: 1.2; }
 }
+
+/* ------------------------------------------------------------- 분야 칩 · 아이콘 버튼 */
+.fields {
+  flex: 1 1 100%; order: 3; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
+  margin: 0 -16px; padding: 0 16px;
+}
+.fields::-webkit-scrollbar { display: none; }
+.field-chip {
+  flex: none; display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 12px;
+  border-radius: 99px; border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.field-chip:hover { color: var(--text); border-color: color-mix(in srgb, var(--brand) 35%, var(--line)); }
+.field-chip[aria-pressed='true'] { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
+.field-chip .count { font-size: 12px; font-weight: 500; opacity: 0.75; font-variant-numeric: tabular-nums; }
+.field-chip:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.btn.icon { width: 34px; padding: 0; justify-content: center; font-size: 15px; }
