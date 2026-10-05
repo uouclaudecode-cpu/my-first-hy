@@ -4,32 +4,57 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>UOU SW 공고 보드</title>
-  <meta name="description" content="울산대 SW 서포터즈가 모은 SW 대외활동·인턴 공고와 울산대 SW 소식" />
+  <meta name="description" content="울산대 SW 서포터즈가 모은 SW 대외활동·인턴 공고와 울산대 SW 소식, 홍보팀 글쓰기 도구" />
   <meta name="theme-color" content="#0b4a9e" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b4a9e'/><text x='16' y='22' font-size='15' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'>SW</text></svg>" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pretendard/1.3.9/static/pretendard-dynamic-subset.min.css" />
-  <link rel="stylesheet" href="style.css?v=20261006c" />
+  <link rel="stylesheet" href="style.css?v=20261006e" />
 </head>
 <body>
-  <header class="hero">
-    <div class="wrap">
-      <p class="brand"><span class="mark" aria-hidden="true">SW</span>울산대학교 SW 서포터즈</p>
-      <h1>SW 공고 보드</h1>
-      <p class="lede">SW 대외활동·공모전, 인턴 공고, 울산대 SW 소식을 매시간 모아요.<br class="hide-sm" />
-        공고마다 <strong>네이버 블로그 · 인스타 게시글 · 에브리타임 게시글</strong> 버튼으로 글쓰기 프롬프트를 복사해 ChatGPT·Claude·Gemini 등 원하는 AI에 붙여넣으세요.</p>
-      <p class="hero-actions">
-        <button type="button" class="btn hero-btn" data-open-post>＋ 공고 올리기</button>
-        <a class="btn hero-btn ghost-light" href="/promo">📣 홍보 현황</a>
-      </p>
+  <!-- 아이콘 모음 (선 아이콘) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+      <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+      <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></symbol>
+      <symbol id="i-external" viewBox="0 0 24 24"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+      <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-megaphone" viewBox="0 0 24 24"><path d="m3 11 18-5v12L3 14v-3zM11.6 16.8a3 3 0 1 1-5.8-1.6"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    </defs>
+  </svg>
 
-      <dl class="stats" aria-live="polite">
-        <div class="stat"><dt>진행 중</dt><dd id="stat-open">–</dd></div>
-        <div class="stat urgent"><dt>마감 임박 <span class="hint">D-3 이내</span></dt><dd id="stat-urgent">–</dd></div>
-        <div class="stat"><dt>오늘 새로 들어온</dt><dd id="stat-new">–</dd></div>
-        <div class="stat"><dt>마지막 수집</dt><dd id="stat-updated" class="small">–</dd></div>
-      </dl>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="logo" href="/"><span class="mark" aria-hidden="true">SW</span><span>울산대 SW 서포터즈</span></a>
+      <nav class="topnav" aria-label="페이지">
+        <a href="/" aria-current="page">공고 보드</a>
+        <a href="/promo">홍보 현황</a>
+      </nav>
+      <button type="button" class="btn primary sm" data-open-post><svg class="i"><use href="#i-plus"/></svg><span>공고 올리기</span></button>
     </div>
   </header>
+
+  <section class="page-head">
+    <div class="wrap">
+      <div class="page-title">
+        <div>
+          <h1>SW 공고 보드</h1>
+          <p class="lede">SW 대외활동·공모전, 인턴, 울산대 SW 소식을 매시간 모아요. 공고마다 블로그·인스타·에브리타임 글쓰기 프롬프트를 복사하고, 올린 채널은 <b>완료 체크</b>로 팀과 공유해요.</p>
+        </div>
+        <p class="updated">마지막 수집 <span id="stat-updated">–</span></p>
+      </div>
+      <dl class="stats" aria-live="polite">
+        <div class="stat"><dt>진행 중 공고</dt><dd id="stat-open">–</dd></div>
+        <div class="stat tone-danger"><dt>마감 임박 <small>D-3 이내</small></dt><dd id="stat-urgent">–</dd></div>
+        <div class="stat"><dt>오늘 새로 들어온</dt><dd id="stat-new">–</dd></div>
+        <a class="stat tone-warn link" href="?pending=1" id="stat-pending-link"><dt>홍보 대기 <small>아직 안 올린 공고</small></dt><dd id="stat-pending">–</dd></a>
+      </dl>
+    </div>
+  </section>
 
   <div class="toolbar">
     <div class="wrap toolbar-inner">
@@ -39,11 +64,10 @@
         <button role="tab" data-cat="intern">인턴 <span class="count"></span></button>
         <button role="tab" data-cat="uou_news">울산대 소식 <span class="count"></span></button>
       </nav>
-      <div class="fields" id="fields" role="group" aria-label="분야"></div>
       <div class="controls">
         <label class="search">
           <span class="sr-only">검색</span>
-          <svg aria-hidden="true" viewBox="0 0 20 20"><circle cx="9" cy="9" r="6" /><path d="m14 14 4 4" /></svg>
+          <svg class="i" aria-hidden="true"><use href="#i-search"/></svg>
           <input id="q" type="search" placeholder="제목·기관·키워드 검색" autocomplete="off" />
         </label>
         <label class="select">
@@ -54,15 +78,10 @@
             <option value="recent">최신 등록순</option>
           </select>
         </label>
-        <label class="toggle">
-          <input id="closed" type="checkbox" />
-          <span>마감 포함</span>
-        </label>
-        <label class="toggle">
-          <input id="pending" type="checkbox" />
-          <span>홍보 대기만</span>
-        </label>
+        <label class="switch"><input id="pending" type="checkbox" /><span>홍보 대기만</span></label>
+        <label class="switch"><input id="closed" type="checkbox" /><span>마감 포함</span></label>
       </div>
+      <div class="fields" id="fields" role="group" aria-label="분야"></div>
     </div>
   </div>
 
@@ -82,26 +101,26 @@
 
   <div class="selbar" id="selbar" hidden>
     <div class="selbar-inner">
-      <span><strong id="sel-count">0</strong>개 선택</span>
+      <span class="sel-count"><strong id="sel-count">0</strong>개 선택</span>
       <span class="sel-label">모음 프롬프트</span>
-      <button type="button" class="btn primary" data-prompt="blog">🟢 블로그</button>
-      <button type="button" class="btn primary" data-prompt="insta">📸 인스타</button>
-      <button type="button" class="btn primary" data-prompt="everytime">💬 에타</button>
-      <button type="button" class="btn ghost" id="sel-clear">선택 해제</button>
+      <button type="button" class="btn sm" data-prompt="blog"><span class="dot blog"></span>블로그</button>
+      <button type="button" class="btn sm" data-prompt="insta"><span class="dot insta"></span>인스타</button>
+      <button type="button" class="btn sm" data-prompt="everytime"><span class="dot everytime"></span>에타</button>
+      <button type="button" class="btn ghost sm" id="sel-clear">선택 해제</button>
     </div>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <button type="button" class="fab" data-open-post aria-label="공고 올리기">＋</button>
+  <button type="button" class="fab" data-open-post aria-label="공고 올리기"><svg class="i"><use href="#i-plus"/></svg></button>
 
   <dialog id="post-dialog" aria-labelledby="post-title">
     <form id="post-form" method="dialog" novalidate>
       <header class="dlg-head">
         <h2 id="post-title">공고 올리기</h2>
-        <button type="button" class="dlg-close" data-close aria-label="닫기">×</button>
+        <button type="button" class="icon-btn" data-close aria-label="닫기"><svg class="i"><use href="#i-x"/></svg></button>
       </header>
-      <p class="dlg-desc">올린 공고는 바로 사이트에 보여요. 광고·허위 공고는 신고되거나 관리자가 지울 수 있어요.</p>
+      <p class="dlg-desc">올린 공고는 바로 사이트에 보여요. 광고·허위 공고는 신고 3건이면 자동으로 숨겨져요.</p>
 
       <fieldset class="seg">
         <legend>분류</legend>
@@ -145,39 +164,55 @@
 
   <template id="card">
     <li class="card">
-      <div class="card-top">
-        <span class="chip"></span>
-        <span class="src"></span>
-        <span class="new" hidden>NEW</span>
-        <label class="pick" title="모음 글에 담기">
-          <input type="checkbox" />
-          <span class="sr-only">모음 글에 담기</span>
-        </label>
+      <div class="card-head">
+        <div class="card-tags">
+          <span class="chip"></span>
+          <span class="src"></span>
+          <span class="new" hidden>NEW</span>
+        </div>
+        <span class="progress" title="홍보한 채널 수"></span>
       </div>
-      <h2><a target="_blank" rel="noopener noreferrer"></a></h2>
+
+      <h2 class="card-title"><a target="_blank" rel="noopener noreferrer"></a></h2>
       <p class="org"></p>
       <p class="summary"></p>
-      <ul class="tags"></ul>
-      <div class="prompt-row" role="group" aria-label="글쓰기 프롬프트 복사">
-        <button type="button" class="btn prompt" data-prompt="blog" title="네이버 블로그 글쓰기 프롬프트 복사">🟢 네이버 블로그</button>
-        <button type="button" class="btn prompt" data-prompt="insta" title="인스타그램 게시글 프롬프트 복사">📸 인스타 게시글</button>
-        <button type="button" class="btn prompt" data-prompt="everytime" title="에브리타임 게시글 프롬프트 복사">💬 에브리타임</button>
+
+      <div class="due">
+        <span class="dday"></span>
+        <span class="date"></span>
+        <ul class="tags"></ul>
       </div>
-      <div class="card-bottom">
-        <div class="due">
-          <span class="dday"></span>
-          <span class="date"></span>
+
+      <div class="promo" role="group" aria-label="홍보">
+        <div class="channel" data-channel="blog">
+          <div class="ch-name"><span class="dot blog"></span><span class="full">네이버 블로그</span><span class="short">블로그</span></div>
+          <button type="button" class="ch-copy" data-prompt="blog" title="네이버 블로그 글쓰기 프롬프트 복사"><svg class="i"><use href="#i-copy"/></svg>프롬프트</button>
+          <button type="button" class="ch-done" data-done="blog" aria-pressed="false"><svg class="i"><use href="#i-check"/></svg><span>완료 체크</span></button>
         </div>
+        <div class="channel" data-channel="insta">
+          <div class="ch-name"><span class="dot insta"></span><span class="full">인스타그램</span><span class="short">인스타</span></div>
+          <button type="button" class="ch-copy" data-prompt="insta" title="인스타그램 게시글 프롬프트 복사"><svg class="i"><use href="#i-copy"/></svg>프롬프트</button>
+          <button type="button" class="ch-done" data-done="insta" aria-pressed="false"><svg class="i"><use href="#i-check"/></svg><span>완료 체크</span></button>
+        </div>
+        <div class="channel" data-channel="everytime">
+          <div class="ch-name"><span class="dot everytime"></span><span class="full">에브리타임</span><span class="short">에타</span></div>
+          <button type="button" class="ch-copy" data-prompt="everytime" title="에브리타임 게시글 프롬프트 복사"><svg class="i"><use href="#i-copy"/></svg>프롬프트</button>
+          <button type="button" class="ch-done" data-done="everytime" aria-pressed="false"><svg class="i"><use href="#i-check"/></svg><span>완료 체크</span></button>
+        </div>
+      </div>
+
+      <div class="card-foot">
+        <label class="pick"><input type="checkbox" /><span>모음에 담기</span></label>
         <div class="actions">
-          <button type="button" class="btn ghost icon cal" title="마감일을 캘린더에 추가" aria-label="마감일을 캘린더에 추가">📅</button>
-          <button type="button" class="btn ghost icon share" title="공고 공유" aria-label="공고 공유">🔗</button>
-          <a class="btn ghost open" target="_blank" rel="noopener noreferrer">원문</a>
-          <button type="button" class="btn ghost report" hidden title="광고·허위 공고 신고">신고</button>
+          <button type="button" class="icon-btn cal" title="마감일을 캘린더에 추가" aria-label="마감일을 캘린더에 추가"><svg class="i"><use href="#i-calendar"/></svg></button>
+          <button type="button" class="icon-btn share" title="공고 공유" aria-label="공고 공유"><svg class="i"><use href="#i-share"/></svg></button>
+          <button type="button" class="icon-btn report" hidden title="광고·허위 공고 신고" aria-label="신고"><svg class="i"><use href="#i-flag"/></svg></button>
+          <a class="btn sm open" target="_blank" rel="noopener noreferrer">원문 보기<svg class="i"><use href="#i-external"/></svg></a>
         </div>
       </div>
     </li>
   </template>
 
-  <script src="app.js?v=20261006c" type="module"></script>
+  <script src="app.js?v=20261006e" type="module"></script>
 </body>
 </html>

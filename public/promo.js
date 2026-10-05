@@ -10,7 +10,7 @@ import {
   loadPromotions,
   setPromotion,
   toast,
-} from './common.js?v=20261006c';
+} from './common.js?v=20261006e';
 
 const $ = (s) => document.querySelector(s);
 const state = { postings: [], byId: new Map(), promos: new Map(), log: [], filter: 'all' };
@@ -51,7 +51,8 @@ function render() {
 
   // 급한 공고
   const urgent = pending.filter((r) => dday(r) !== null && dday(r) <= 7);
-  $('#urgent').replaceChildren(...(urgent.length ? urgent.map(row) : [emptyRow('급한 공고가 없어요. 👍')]));
+  $('#urgent').replaceChildren(...(urgent.length ? urgent.map(row) : [emptyRow('급한 공고가 없어요.')]));
+  $('#urgent-panel').classList.toggle('tone-warn', urgent.length > 0);
 
   // 필터별 개수와 목록
   for (const b of document.querySelectorAll('#filters button')) {
@@ -72,10 +73,12 @@ function render() {
           const li = document.createElement('li');
           const time = Object.assign(document.createElement('time'), { textContent: formatDateTime(p.done_at), dateTime: p.done_at });
           const title = state.byId.get(p.posting_id)?.title ?? '(지워진 공고)';
-          li.append(time, `${c?.icon ?? ''} ${c?.short ?? p.channel} · `, Object.assign(document.createElement('b'), { textContent: title }));
+          const who = Object.assign(document.createElement('span'), { className: 'who' });
+          who.append(Object.assign(document.createElement('span'), { className: `dot ${p.channel}` }), c?.short ?? p.channel);
+          li.append(time, who, Object.assign(document.createElement('b'), { textContent: title }));
           return li;
         })
-      : [Object.assign(document.createElement('li'), { textContent: '아직 기록이 없어요.' })]),
+      : [Object.assign(document.createElement('li'), { className: 'empty', textContent: '아직 기록이 없어요.' })]),
   );
 }
 
@@ -94,22 +97,24 @@ function row(r) {
   const meta = document.createElement('div');
   meta.className = 'board-meta';
   const d = dday(r);
-  const badge = Object.assign(document.createElement('span'), { className: 'mini-dday', textContent: ddayLabel(r) });
+  const badge = Object.assign(document.createElement('span'), { className: 'dday', textContent: ddayLabel(r) });
   badge.dataset.level = d === null ? 'none' : d <= 3 ? 'urgent' : d <= 7 ? 'soon' : 'normal';
   meta.append(badge, CATEGORY_LABEL[r.category] ?? '', r.organization ? ` · ${r.organization}` : '');
   title.append(a, meta);
 
-  const pills = document.createElement('div');
-  pills.className = 'pills';
+  const toggles = document.createElement('div');
+  toggles.className = 'toggles';
   for (const c of CHANNELS) {
     const at = state.promos.get(r.id)?.get(c.key);
-    const b = Object.assign(document.createElement('button'), { type: 'button', className: 'pill', textContent: `${c.icon} ${c.short}` });
+    const b = Object.assign(document.createElement('button'), { type: 'button', className: 'ch-toggle' });
+    b.innerHTML = `<span class="dot ${c.key}"></span><svg class="i"><use href="#i-check"/></svg>`;
+    b.append(c.short);
     b.setAttribute('aria-pressed', String(Boolean(at)));
-    b.title = at ? `${formatDateTime(at)} 게시 완료 · 누르면 취소` : `${c.short}에 올렸으면 눌러 주세요`;
+    b.title = at ? `${formatDateTime(at)} 홍보 완료 · 누르면 해제` : `${c.short}에 올렸으면 눌러 주세요`;
     b.addEventListener('click', () => toggle(r, c, !at, b));
-    pills.append(b);
+    toggles.append(b);
   }
-  li.append(title, pills);
+  li.append(title, toggles);
   return li;
 }
 
@@ -127,7 +132,7 @@ async function toggle(r, c, done, btn) {
       state.log = state.log.filter((p) => !(p.posting_id === r.id && p.channel === c.key));
     }
     render();
-    toast(done ? `${c.icon} ${c.short} 완료로 표시했어요.` : `${c.icon} ${c.short} 표시를 취소했어요.`, {
+    toast(done ? `${c.short} 홍보 완료로 체크했어요.` : `${c.short} 완료 체크를 해제했어요.`, {
       label: '되돌리기',
       onClick: () => toggle(r, c, !done, btn),
     });

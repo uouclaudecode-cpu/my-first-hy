@@ -15,7 +15,7 @@ import {
   toast,
   loadPromotions,
   setPromotion,
-} from './common.js?v=20261006c';
+} from './common.js?v=20261006e';
 
 const SOURCE_LABEL = {
   wevity: '위비티',
@@ -32,12 +32,12 @@ const MAX_SELECT = 8;
 
 // 분야 필터: 제목·소개·태그에 들어간 단어로 판단합니다. 한 공고가 여러 분야에 속할 수 있어요.
 const FIELDS = [
-  { key: 'ai', label: '🤖 AI·데이터', re: /AI|인공지능|데이터|머신러닝|딥러닝|LLM|에이전트|생성형|GPT/i },
-  { key: 'web', label: '💻 웹·앱', re: /웹(?!툰)|앱|모바일|프론트|백엔드|풀스택|서비스 개발|플랫폼/ },
-  { key: 'game', label: '🎮 게임', re: /게임|e스포츠|이스포츠|로블록스|메이플|Unity|유니티/i },
-  { key: 'contest', label: '🏆 해커톤·대회', re: /해커톤|아이디어톤|경진대회|경시대회|챌린지|공모전|콘테스트|대회/ },
-  { key: 'edu', label: '📚 교육·부트캠프', re: /교육|부트캠프|아카데미|캠프|특강|과정|강의|설명회|TA/ },
-  { key: 'startup', label: '🚀 창업', re: /창업|스타트업|사업화|오디션/ },
+  { key: 'ai', label: 'AI·데이터', re: /AI|인공지능|데이터|머신러닝|딥러닝|LLM|에이전트|생성형|GPT/i },
+  { key: 'web', label: '웹·앱', re: /웹(?!툰)|앱|모바일|프론트|백엔드|풀스택|서비스 개발|플랫폼/ },
+  { key: 'game', label: '게임', re: /게임|e스포츠|이스포츠|로블록스|메이플|Unity|유니티/i },
+  { key: 'contest', label: '해커톤·대회', re: /해커톤|아이디어톤|경진대회|경시대회|챌린지|공모전|콘테스트|대회/ },
+  { key: 'edu', label: '교육·부트캠프', re: /교육|부트캠프|아카데미|캠프|특강|과정|강의|설명회|TA/ },
+  { key: 'startup', label: '창업', re: /창업|스타트업|사업화|오디션/ },
 ];
 
 const $ = (s) => document.querySelector(s);
@@ -115,6 +115,32 @@ function renderStats() {
   $('#stat-open').textContent = open.length;
   $('#stat-urgent').textContent = open.filter((r) => dday(r) !== null && dday(r) <= 3).length;
   $('#stat-new').textContent = open.filter(isNew).length;
+  $('#stat-pending').textContent = open.filter((r) => r.category !== 'uou_news' && !state.promos.get(r.id)?.size).length;
+}
+
+/** ISO 시각 → 한국 날짜 '10/6' */
+function shortDate(iso) {
+  const [, m, d] = new Date(Date.parse(iso) + 9 * 3600e3).toISOString().slice(0, 10).split('-');
+  return `${+m}/${+d}`;
+}
+
+/** 카드의 홍보 칸: 채널별 완료 상태, 완료 날짜, 진행도(n/3) */
+function renderPromo(el, r) {
+  const done = state.promos.get(r.id);
+  const n = done?.size ?? 0;
+  const progress = el.querySelector('.progress');
+  progress.textContent = n === CHANNELS.length ? '홍보 완료' : `홍보 ${n}/${CHANNELS.length}`;
+  progress.dataset.level = n === 0 ? 'none' : n === CHANNELS.length ? 'all' : 'partial';
+  el.classList.toggle('promo-all', n === CHANNELS.length);
+  for (const ch of el.querySelectorAll('.channel')) {
+    const key = ch.dataset.channel;
+    const at = done?.get(key);
+    const btn = ch.querySelector('.ch-done');
+    ch.classList.toggle('is-done', Boolean(at));
+    btn.setAttribute('aria-pressed', String(Boolean(at)));
+    btn.querySelector('span').textContent = at ? `완료 ${shortDate(at)}` : '완료 체크';
+    btn.title = at ? `${formatDateTime(at)} 홍보 완료 · 누르면 해제` : '이 채널에 올렸으면 눌러 주세요';
+  }
 }
 
 function render() {
@@ -147,16 +173,11 @@ function card(r) {
   el.classList.toggle('picked', pick.checked);
 
   const link = /^https?:\/\//.test(r.url) ? r.url : null;
-  const a = el.querySelector('h2 a');
+  const a = el.querySelector('.card-title a');
   a.textContent = r.title;
   el.querySelector('.report').hidden = r.source !== 'community';
   el.querySelector('.cal').hidden = !r.deadline || isClosed(r);
-  const done = state.promos.get(r.id);
-  for (const b of el.querySelectorAll('.prompt-row [data-prompt]')) {
-    const at = done?.get(b.dataset.prompt);
-    b.classList.toggle('done', Boolean(at));
-    if (at) b.title = `${b.title} · ${formatDateTime(at)} 게시 완료`;
-  }
+  renderPromo(el, r);
   if (!link) el.querySelector('.share').hidden = true;
   const open = el.querySelector('.open');
   if (link) {
@@ -405,33 +426,47 @@ async function copyPrompt(rows, kind) {
   if (!prompt) return;
   const ok = await copyText(prompt.build(rows));
   if (!ok) return toast('복사하지 못했어요. 브라우저의 클립보드 권한을 확인해 주세요.');
-  // 복사 후, 다 올렸으면 바로 "게시 완료"로 표시할 수 있게 버튼을 띄웁니다.
-  const allDone = rows.every((r) => state.promos.get(r.id)?.has(kind));
-  toast(`${prompt.label} 프롬프트를 복사했어요. AI 채팅에 붙여넣어 글을 만드세요.`, {
-    label: allDone ? '↩️ 완료 취소' : rows.length > 1 ? `✅ ${rows.length}개 다 올렸어요` : '✅ 올렸어요',
-    onClick: () => markPromoted(rows, kind, !allDone),
-  });
+  const ch = CHANNELS.find((c) => c.key === kind);
+  toast(`${ch.short} 프롬프트를 복사했어요. AI 채팅에 붙여넣어 글을 만들고, 올린 뒤에는 '완료 체크'를 눌러 주세요.`);
 }
 
-/** 홍보 완료 표시/취소: 팀원 모두에게 보이도록 promotions 표에 저장합니다. */
+/** 홍보 완료 체크/해제: 팀원 모두에게 보이도록 promotions 표에 저장합니다. */
 async function markPromoted(rows, kind, done) {
   const ch = CHANNELS.find((c) => c.key === kind);
+  for (const r of rows) {
+    await setPromotion(r.id, kind, done);
+    if (!state.promos.has(r.id)) state.promos.set(r.id, new Map());
+    if (done) state.promos.get(r.id).set(kind, new Date().toISOString());
+    else state.promos.get(r.id).delete(kind);
+  }
+  return ch;
+}
+
+async function toggleDone(row, kind, btn) {
+  const done = !state.promos.get(row.id)?.has(kind);
+  btn.disabled = true;
   try {
-    for (const r of rows) {
-      await setPromotion(r.id, kind, done);
-      if (!state.promos.has(r.id)) state.promos.set(r.id, new Map());
-      if (done) state.promos.get(r.id).set(kind, new Date().toISOString());
-      else state.promos.get(r.id).delete(kind);
-    }
-    render();
-    toast(done ? `${ch.icon} ${ch.short} 게시 완료로 표시했어요.` : `${ch.icon} ${ch.short} 완료 표시를 취소했어요.`, {
-      label: '📣 홍보 현황',
-      href: '/promo',
-      newTab: false,
+    const ch = await markPromoted([row], kind, done);
+    refreshCard(row);
+    renderStats();
+    toast(done ? `${ch.short} 홍보 완료로 체크했어요.` : `${ch.short} 완료 체크를 해제했어요.`, {
+      label: '되돌리기',
+      onClick: async () => {
+        await markPromoted([row], kind, !done).catch((e) => toast(e.message));
+        refreshCard(row);
+        renderStats();
+      },
     });
   } catch (err) {
+    btn.disabled = false;
     toast(err.message);
   }
+}
+
+/** 카드 하나만 다시 그립니다. (목록 전체를 다시 그리면 스크롤·포커스가 흔들려서) */
+function refreshCard(row) {
+  const old = $(`#list .card[data-id="${row.id}"]`);
+  if (old) old.replaceWith(card(row));
 }
 
 // ---------------------------------------------------------------- 도우미
@@ -489,6 +524,8 @@ $('#list').addEventListener('click', (e) => {
   const row = state.rows.find((r) => String(r.id) === cardEl.dataset.id);
   const promptBtn = e.target.closest('[data-prompt]');
   if (promptBtn) copyPrompt([row], promptBtn.dataset.prompt);
+  const doneBtn = e.target.closest('[data-done]');
+  if (doneBtn) toggleDone(row, doneBtn.dataset.done, doneBtn);
   if (e.target.closest('.report')) reportPost(row, e.target.closest('.report'));
   if (e.target.closest('.cal')) addToCalendar(row);
   if (e.target.closest('.share')) sharePosting(row);
@@ -621,3 +658,11 @@ async function reportPost(row, btn) {
 
 readUrl();
 load();
+
+// 상단 "홍보 대기" 숫자를 누르면 홍보 안 한 공고만 보여줍니다.
+$('#stat-pending-link').addEventListener('click', (e) => {
+  e.preventDefault();
+  $('#pending').checked = true;
+  update({ pending: true });
+  document.querySelector('.toolbar').scrollIntoView({ behavior: 'smooth' });
+});
