@@ -1,0 +1,27 @@
+name: 주간 글 작성
+
+on:
+  schedule:
+    - cron: '0 23 * * 0' # 매주 월요일 08:00 (KST)
+  workflow_dispatch: {} # Actions 탭에서 수동 실행
+
+permissions:
+  contents: read
+
+jobs:
+  write:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: 이번 주 공고 모음 글 쓰기
+        run: node scripts/weekly-posts.mjs
+        env:
+          SUPABASE_URL: https://yggicyfxcyutfmcsnhxw.supabase.co
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

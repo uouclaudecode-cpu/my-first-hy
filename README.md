@@ -15,6 +15,9 @@ collector/index.mjs  ──upsert──▶  postings 표  ◀──읽기(공개
 | `collector/` | 수집기 (Node 20+, 외부 패키지 없음) |
 | `supabase/schema.sql` | 표 생성 SQL |
 | `supabase/002_community.sql` | 방문자 공고 올리기·신고·관리자 권한 SQL |
+| `supabase/003_drafts.sql` | AI 글 보관함 표 |
+| `lib/writer.mjs`, `api/write.js` | AI 글 쓰기 (프롬프트, Vercel 함수) |
+| `scripts/weekly-posts.mjs` | 매주 월요일 주간 글 자동 작성 |
 | `data/manual-postings.json` | 서포터즈가 직접 추가한 공고 |
 | `.github/workflows/collect.yml` | 1시간마다 수집기 실행 |
 
@@ -49,10 +52,18 @@ Supabase 대시보드 → **SQL Editor** → `supabase/schema.sql` 내용을 붙
 Vercel → **Add New → Project** → 이 저장소 Import → 설정은 그대로 두고 Deploy.
 (`vercel.json`이 `public/` 폴더를 정적 사이트로 배포하도록 지정합니다. 환경 변수는 필요 없습니다.)
 
-## 카드뉴스 만들기 (Canva)
-- 공고 카드의 **카드뉴스 복사** 버튼을 누르면 공고 정보가 담긴 요청 문장이 복사됩니다.
-- 여러 공고의 체크박스를 고르고(최대 8개) 아래 **모음 카드뉴스 요청 복사**를 누르면 "이번 주 SW 공고 모음"용 문장이 복사됩니다.
-- Canva가 연결된 Claude 채팅에 붙여넣으면 Canva에서 디자인을 만들어 줍니다.
+## AI 글 쓰기 (블로그·인스타그램)
+- 공고 카드의 **✍️ 글 쓰기**를 누르면 Claude가 네이버 블로그 글과 인스타그램 캡션을 이모지와 함께 씁니다. 여러 공고를 체크하면(최대 8개) 모음 글을 씁니다.
+- 매주 **월요일 08:00**에는 "이번 주 SW 공고 모음" 글이 자동으로 써집니다.
+- 쓴 글은 모두 **/posts (글 보관함)** 에 쌓이고, 탭별로 복사할 수 있습니다.
+- 글 쓰기는 비용이 들어서 관리자(admins 표)로 로그인한 사람만 쓸 수 있습니다. 로그인은 `/admin`.
+- 주어진 공고 정보에 없는 혜택·상금 등은 지어내지 않도록 했지만, 올리기 전에 마감일과 링크는 한 번 더 확인하세요.
+
+**처음 한 번 설정**
+1. Supabase SQL Editor에서 `supabase/003_drafts.sql` 실행
+2. [Anthropic Console](https://console.anthropic.com)에서 API 키 발급 (결제 수단 등록 필요)
+3. Vercel → 프로젝트 → Settings → **Environment Variables**에 `ANTHROPIC_API_KEY` 추가 후 Redeploy
+4. GitHub Secrets에 `ANTHROPIC_API_KEY` 추가 (주간 자동 글용)
 
 ## 공고 직접 추가하기
 자동 수집하지 않는 곳(링커리어 등)의 공고는 Claude 채팅에 공고 내용과 링크를 붙여넣고 "공고 추가해줘"라고 하면 됩니다.

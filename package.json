@@ -1,0 +1,14 @@
+{
+  "name": "uou-sw-board",
+  "private": true,
+  "type": "module",
+  "description": "울산대 SW 공고 보드: AI 글쓰기(api/write.js, scripts/weekly-posts.mjs)용 의존성",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "weekly": "node scripts/weekly-posts.mjs",
+    "weekly:dry": "node scripts/weekly-posts.mjs --dry-run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0"
+  }
+}

@@ -1,5 +1,7 @@
 // Supabase 공개(publishable) 키는 브라우저에 노출돼도 되는 키입니다.
 // 테이블은 RLS로 '읽기만' 허용되어 있습니다. (supabase/schema.sql 참고)
+import { draftView } from './drafts-ui.js';
+
 const SUPABASE_URL = 'https://yggicyfxcyutfmcsnhxw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QSU6nO1Kil6FBi-wtTWLRw_tRD02S6M';
 
@@ -175,121 +177,58 @@ function renderSelbar() {
   document.body.classList.toggle('has-selbar', n > 0);
 }
 
-// ---------------------------------------------------------------- 카드뉴스 요청 문장
-// Canva의 인스타그램 게시물 생성은 한 장짜리 디자인이 기본이고, 요청에 적힌 문구를 그대로 싣습니다.
-// 그래서 "이미지에 들어갈 문구"를 정확히 정해서 공고 1개 = 카드 1장으로 요청합니다.
-// URL·메모는 이미지에 넣지 않고, 인스타그램 캡션 초안에만 넣도록 따로 줍니다.
-
-function ddayLabel(r) {
-  const d = dday(r);
-  if (d === null) return '상시 모집';
-  return d < 0 ? '마감' : d === 0 ? 'D-DAY' : `D-${d}`;
-}
-
-/** 카드에 들어갈 제목: 끝의 괄호 설명을 빼고, 그래도 길면 단어 단위로 자릅니다. */
-function shortTitle(title, max = 42) {
-  let t = title.trim();
-  if (t.length > max) t = t.replace(/\s*\([^)]*\)\s*$/, '');
-  if (t.length <= max) return t;
-  const cut = t.slice(0, max);
-  const space = cut.lastIndexOf(' ');
-  return (space > max * 0.5 ? cut.slice(0, space) : cut).replace(/[\s·,\-]+$/, '') + '…';
-}
-
-/** 이미지에 실을 문구 (글자 그대로 사용) */
-function cardLines(r) {
-  const lines = [
-    `- 상단 작은 라벨: ${CATEGORY_LABEL[r.category] ?? r.category} · ${ddayLabel(r)}`,
-    `- 큰 제목: ${shortTitle(r.title)}`,
-  ];
-  if (r.organization) lines.push(`- 주최: ${r.organization}`);
-  if (r.deadline) lines.push(`- 마감: ${formatDate(r.deadline)}`);
-  lines.push('- 한 줄 소개: (아래 참고 정보로 25자 이내 한국어 문장을 직접 써서 넣어줘)');
-  lines.push('- 맨 아래: 자세한 내용은 프로필 링크에서 | 울산대 SW 서포터즈');
-  return lines;
-}
-
-/** 이미지에는 넣지 않는 참고 정보 */
-function referenceLines(r) {
-  return [
-    r.summary && `- 참고 내용: ${r.summary}`,
-    isGuessed(r) && '- 마감일은 공지 본문에서 추정한 날짜야. 이미지에는 그대로 쓰되, 확인이 필요하다고 나에게 알려줘.',
-    `- 원문 링크(캡션용): ${r.url}`,
-  ].filter(Boolean);
-}
-
-const STYLE =
-  '스타일: 남색과 하늘색 위주의 깔끔한 정보형 디자인, 제목을 가장 크게, 마감일은 눈에 띄게 강조, 인물 사진 없이 도형과 아이콘만 사용.';
-const RULES = [
-  'Canva로 만들 때 지켜줘:',
-  '- 형식: Instagram Post (Portrait)',
-  '- "이미지 문구"만 글자 그대로 넣고, 다른 문구·영어·링크는 추가하지 마',
-  '- 다 만들면 디자인 링크와 함께 인스타그램 캡션 초안(원문 링크, 해시태그 3~5개 포함)을 써줘',
-];
-
-function cardNewsPrompt(rows) {
-  if (rows.length === 1) {
-    const r = rows[0];
-    return [
-      '울산대 SW 서포터즈 인스타그램 카드뉴스 1장을 Canva로 만들어줘.',
-      '',
-      ...RULES,
-      '',
-      '[이미지 문구]',
-      ...cardLines(r),
-      '',
-      STYLE,
-      '',
-      '[참고 정보 - 이미지에 넣지 마]',
-      ...referenceLines(r),
-    ].join('\n');
-  }
-  const blocks = rows.map((r, i) =>
-    [`## 카드 ${i + 2}`, '[이미지 문구]', ...cardLines(r), '[참고 정보 - 이미지에 넣지 마]', ...referenceLines(r)].join('\n'),
-  );
-  return [
-    `울산대 SW 서포터즈 "이번 주 SW 공고 모음" 인스타그램 카드뉴스를 Canva로 만들어줘. 카드 ${rows.length + 1}장을 각각 따로 만들면 돼.`,
-    '',
-    ...RULES,
-    '- 모든 카드는 같은 색과 분위기로 통일해줘',
-    '',
-    STYLE,
-    '',
-    '## 카드 1 (표지)',
-    '[이미지 문구]',
-    '- 큰 제목: 이번 주 SW 공고 모음',
-    `- 부제: ${formatDate(today)} 기준 · 공고 ${rows.length}개`,
-    `- 목록: ${rows.map((r) => `${ddayLabel(r)} ${shortTitle(r.title, 24)}`).join(' / ')}`,
-    '- 맨 아래: 울산대 SW 서포터즈',
-    '',
-    blocks.join('\n\n'),
-  ].join('\n');
-}
-
-async function copyText(text) {
+// ---------------------------------------------------------------- AI 글 쓰기
+// 로그인한 관리자만 /api/write를 호출할 수 있습니다. (로그인은 /admin 에서)
+let sbClient;
+async function getSession() {
   try {
-    await navigator.clipboard.writeText(text);
-    return true;
+    if (!sbClient) {
+      const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+      sbClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+    }
+    return (await sbClient.auth.getSession()).data.session;
   } catch {
-    const ta = Object.assign(document.createElement('textarea'), { value: text });
-    ta.style.cssText = 'position:fixed;opacity:0';
-    document.body.append(ta);
-    ta.select();
-    const ok = document.execCommand('copy');
-    ta.remove();
-    return ok;
+    return null;
   }
 }
 
-async function copyPrompt(rows) {
-  const ok = await copyText(cardNewsPrompt(rows));
-  toast(
-    ok
-      ? 'Canva가 연결된 Claude 채팅에 붙여넣으면 카드뉴스를 만들어 드려요.'
-      : '복사하지 못했어요. 브라우저의 클립보드 권한을 확인해 주세요.',
-    ok ? { label: 'Claude 열기', href: 'https://claude.ai/new' } : null,
-  );
+async function writeDraft(rows, btn) {
+  const session = await getSession();
+  if (!session) {
+    return toast('글 쓰기는 로그인한 다음에 쓸 수 있어요.', { label: '로그인하기', href: '/admin', newTab: false });
+  }
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '✍️ 쓰는 중… (30초쯤)';
+  try {
+    const res = await fetch('/api/write', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ posting_ids: rows.map((r) => r.id) }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `글을 쓰지 못했어요. (${res.status})`);
+    showDraft(body.draft, body.saved);
+  } catch (err) {
+    toast(err.message === 'Failed to fetch' ? '서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.' : err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
 }
+
+const draftDialog = $('#draft-dialog');
+function showDraft(draft, saved) {
+  $('#draft-body').replaceChildren(
+    draftView(draft, (ok, what) => toast(ok ? `${what} 글을 복사했어요.` : '복사하지 못했어요. 직접 드래그해서 복사해 주세요.')),
+  );
+  $('#draft-saved').textContent = saved ? '글 보관함에 저장했어요.' : '보관함 저장에는 실패했어요. 지금 복사해 두세요.';
+  if (typeof draftDialog.showModal === 'function') draftDialog.showModal();
+  else draftDialog.setAttribute('open', '');
+}
+draftDialog.querySelectorAll('[data-close]').forEach((b) =>
+  b.addEventListener('click', () => (draftDialog.close ? draftDialog.close() : draftDialog.removeAttribute('open'))),
+);
 
 // ---------------------------------------------------------------- 도우미
 function setText(el, text) {
@@ -321,12 +260,8 @@ function toast(msg, action) {
   const el = $('#toast');
   el.replaceChildren(document.createTextNode(msg));
   if (action) {
-    const a = Object.assign(document.createElement('a'), {
-      href: action.href,
-      target: '_blank',
-      rel: 'noopener',
-      textContent: action.label,
-    });
+    const a = Object.assign(document.createElement('a'), { href: action.href, textContent: action.label });
+    if (action.newTab !== false) Object.assign(a, { target: '_blank', rel: 'noopener' });
     el.append(a);
   }
   el.classList.add('show');
@@ -372,7 +307,8 @@ $('#list').addEventListener('click', (e) => {
   const cardEl = e.target.closest('.card[data-id]');
   if (!cardEl) return;
   const row = state.rows.find((r) => String(r.id) === cardEl.dataset.id);
-  if (e.target.closest('.copy')) copyPrompt([row]);
+  const write = e.target.closest('.write');
+  if (write) writeDraft([row], write);
   if (e.target.closest('.report')) reportPost(row, e.target.closest('.report'));
 });
 $('#list').addEventListener('change', (e) => {
@@ -381,7 +317,7 @@ $('#list').addEventListener('change', (e) => {
   const id = Number(cardEl.dataset.id);
   if (e.target.checked && state.selected.size >= MAX_SELECT) {
     e.target.checked = false;
-    toast(`모음 카드뉴스에는 최대 ${MAX_SELECT}개까지 담을 수 있어요.`);
+    toast(`모음 글에는 최대 ${MAX_SELECT}개까지 담을 수 있어요.`);
     return;
   }
   if (e.target.checked) state.selected.add(id);
@@ -389,9 +325,9 @@ $('#list').addEventListener('change', (e) => {
   cardEl.classList.toggle('picked', e.target.checked);
   renderSelbar();
 });
-$('#sel-copy').addEventListener('click', () => {
+$('#sel-write').addEventListener('click', (e) => {
   const rows = state.rows.filter((r) => state.selected.has(r.id));
-  copyPrompt(sortRows(rows));
+  writeDraft(sortRows(rows), e.currentTarget);
 });
 $('#sel-clear').addEventListener('click', () => {
   state.selected.clear();
